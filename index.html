@@ -3853,17 +3853,22 @@ function smartCleanName(str) {
     return s.toLowerCase().replace(/(^|\s)\S/g, l => l.toUpperCase());
 }function smartCleanClass(str) { if (!str) return ""; let clean = str.toString().trim().toUpperCase().replace(/\s+/g, ''); clean = clean.replace(/LỚP/g, ''); return "Lớp " + clean; }
 function compressImage(file, maxWidth, quality, callback) { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = event => { const img = new Image(); img.src = event.target.result; img.onload = () => { let width = img.width; let height = img.height; if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); const dataUrl = canvas.toDataURL('image/jpeg', quality); callback(dataUrl); }; }; }
+// Tìm hàm này trong code của bạn
 function saveData() {
-    // 1. Lưu vào máy như cũ
-    localStorage.setItem('hk_v33_db', JSON.stringify(db));
+    // ... các dòng lưu localStorage cũ giữ nguyên ...
+    localStorage.setItem(LS.students, JSON.stringify(students));
+    localStorage.setItem(LS.trash, JSON.stringify(trash));
+    localStorage.setItem(LS.avatars, JSON.stringify(avatars));
+    localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
+    localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
+    localStorage.setItem(LS.grades, JSON.stringify(grades));
+    localStorage.setItem(LS.wheel, JSON.stringify(prizes));
+    localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
+    localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
     
-    // 2. Cập nhật giao diện
-    if (typeof updateStats === 'function') updateStats();
-    if (typeof renderList === 'function') renderList();
-    
-    // 3. BẬT CÔNG TẮC (Đây là dòng quan trọng nhất)
+    // --- THÊM DÒNG QUAN TRỌNG NÀY VÀO CUỐI HÀM ---
     window.hasLocalChange = true; 
-    console.log("🚀 Đã bật công tắc đồng bộ!");
+    console.log("💾 Đã lưu và đánh dấu có thay đổi mới!");
 }
 function generateAvatar(name) {
     if (!name) return "";

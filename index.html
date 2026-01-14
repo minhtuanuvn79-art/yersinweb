@@ -3597,6 +3597,7 @@ const LS = {
     wheel: "hk_v33_wheel", tkb: "hk_v33_tkb",
     quick_buttons: "hk_v33_quick_btns" 
 };
+
 let teacherProfiles = JSON.parse(localStorage.getItem("hk_v33_teacher_profiles") || "{}");
 // --- THÊM DÒNG NÀY VÀO PHẦN KHAI BÁO BIẾN (Gần đầu file) ---
 const LS_HISTORY = "hk_v33_tkb_history"; // Tên khóa lưu trữ mới
@@ -3852,22 +3853,17 @@ function smartCleanName(str) {
     return s.toLowerCase().replace(/(^|\s)\S/g, l => l.toUpperCase());
 }function smartCleanClass(str) { if (!str) return ""; let clean = str.toString().trim().toUpperCase().replace(/\s+/g, ''); clean = clean.replace(/LỚP/g, ''); return "Lớp " + clean; }
 function compressImage(file, maxWidth, quality, callback) { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = event => { const img = new Image(); img.src = event.target.result; img.onload = () => { let width = img.width; let height = img.height; if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); const dataUrl = canvas.toDataURL('image/jpeg', quality); callback(dataUrl); }; }; }
-function saveData() { 
-    try { 
-        localStorage.setItem(LS.students, JSON.stringify(students)); 
-        localStorage.setItem(LS.trash, JSON.stringify(trash)); 
-        localStorage.setItem(LS.avatars, JSON.stringify(avatars)); 
-        localStorage.setItem(LS.hk_data, JSON.stringify(db.hk)); 
-        localStorage.setItem(LS.acad_data, JSON.stringify(db.acad)); 
-        localStorage.setItem(LS.grades, JSON.stringify(grades)); 
-        localStorage.setItem(LS.tkb, JSON.stringify(tkbData)); 
-        localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons)); 
-        
-        updateTrashCount(); 
-        // Đã xóa tính năng syncToCloud
-    } catch (e) { 
-        showToast("Lỗi lưu trữ! Bộ nhớ đầy.", "error"); 
-    }
+function saveData() {
+    // 1. Lưu vào máy như cũ
+    localStorage.setItem('hk_v33_db', JSON.stringify(db));
+    
+    // 2. Cập nhật giao diện
+    if (typeof updateStats === 'function') updateStats();
+    if (typeof renderList === 'function') renderList();
+    
+    // 3. BẬT CÔNG TẮC (Đây là dòng quan trọng nhất)
+    window.hasLocalChange = true; 
+    console.log("🚀 Đã bật công tắc đồng bộ!");
 }
 function generateAvatar(name) {
     if (!name) return "";
@@ -8710,24 +8706,6 @@ function syncToCloud() {
     });
 }
 
-async function syncFromCloud() {
-    const URL = "https://script.google.com/macros/s/AKfycbyIgvtL-0LdiCMOrakYZFKuG7ov5-NZjIYwWYQwqjK6_vrq6MdMd7SZCWU31NlM5nTP/exec";
-    if (hasLocalChange) return; // Nếu máy này đang có thay đổi chưa kịp Up, tạm dừng tải về để tránh mất dữ liệu đang nhập
-
-    try {
-        const response = await fetch(URL + "?t=" + new Date().getTime());
-        const result = await response.json();
-        if (result && result.data) {
-            // Chỉ cập nhật nếu dữ liệu Cloud khác với dữ liệu hiện tại
-            if (JSON.stringify(db) !== JSON.stringify(result.data)) {
-                db = result.data;
-                localStorage.setItem("hk_v33_db", JSON.stringify(db));
-                renderList();
-                console.log("📥 Đã cập nhật dữ liệu mới nhất từ máy khác.");
-            }
-        }
-    } catch (e) { }
-}
 // ==========================================
 // 🔄 AUTO SAVE LOGIC (LƯU TỰ ĐỘNG)
 // ==========================================
@@ -9630,6 +9608,10 @@ function schRunAI() {
 
     }, 100);
 }
+function triggerCloudSync() {
+    hasLocalChange = true;
+    console.log("🚀 Đã kích hoạt đèn báo đồng bộ Cloud.");
+}
 // Khi tạo HTML trong vòng lặp:
 // html += `<span class="badge-rank ${getRankClass(hs.hanhKiem)}">${hs.hanhKiem}</span>`;
 $('search').oninput = renderList; 
@@ -9644,87 +9626,49 @@ $('classSelect').onchange = function() {
 init();
 </script>
 <script>
-let hasLocalChange = false; // Mặc định là không có thay đổi
-// --- CẤU HÌNH TỰ ĐỘNG HÓA (AUTO CONFIG) ---
-// --- HỆ THỐNG TỰ ĐỘNG HÓA HOÀN TOÀN ---
-const HARD_FIXED_URL = "https://script.google.com/macros/s/AKfycbyIgvtL-0LdiCMOrakYZFKuG7ov5-NZjIYwWYQwqjK6_vrq6MdMd7SZCWU31NlM5nTP/exec";
+// --- HỆ THỐNG ĐỒNG BỘ ỔN ĐỊNH (FINAL) ---
 
-// 1. Tự động tải dữ liệu mới mỗi 20 giây (Không cần xác nhận)
-async function autoFetchCloud() {
-    // Nếu máy này đang có thay đổi chưa kịp lưu lên Cloud, 
-    // thì KHÔNG tải dữ liệu về để tránh bị dữ liệu cũ trên Cloud đè mất dữ liệu đang nhập.
-    if (hasLocalChange) return; 
+// Link Google Sheet của bạn
+const SYNC_URL = "https://script.google.com/macros/s/AKfycbyIgvtL-0LdiCMOrakYZFKuG7ov5-NZjIYwWYQwqjK6_vrq6MdMd7SZCWU31NlM5nTP/exec";
 
-    try {
-        // Thêm tham số ?t= để tránh trình duyệt lấy dữ liệu cũ trong bộ nhớ đệm
-        const response = await fetch(HARD_FIXED_URL + "?t=" + new Date().getTime());
-        const result = await response.json();
-        
-        if (result && result.data) {
-            // Chỉ cập nhật nếu dữ liệu trên Cloud thực sự khác với dữ liệu hiện tại
-            if (JSON.stringify(db) !== JSON.stringify(result.data)) {
-                db = result.data;
-                localStorage.setItem("hk_v33_db", JSON.stringify(db));
-                if (typeof renderList === 'function') renderList();
-                console.log("📥 [Auto] Đã phát hiện và cập nhật dữ liệu mới nhất từ máy khác.");
-            }
-        }
-    } catch (e) { 
-        console.log("Cloud chưa phản hồi hoặc đang bận..."); 
-    }
-}
+async function runAutoSync() {
+    // Nếu chưa có công tắc thì tạo mới (tránh lỗi)
+    if (typeof window.hasLocalChange === 'undefined') window.hasLocalChange = false;
 
-setInterval(async () => {
-    // TRƯỜNG HỢP 1: Nếu máy này vừa có thay đổi (bấm Thêm/Xóa/Sửa)
-    if (hasLocalChange) {
+    // --- MÁY A: GỬI ĐI ---
+    if (window.hasLocalChange === true) {
         try {
-            await fetch(HARD_FIXED_URL, {
+            await fetch(SYNC_URL, {
                 method: "POST",
                 mode: "no-cors",
                 body: JSON.stringify({ data: db })
             });
-            hasLocalChange = false; // Up xong rồi thì tắt đèn báo hiệu
-            console.log("📤 [Cloud] Đã sao lưu dữ liệu mới nhất lên server.");
-        } catch (e) { console.error("Lỗi Up dữ liệu"); }
+            window.hasLocalChange = false; // Gửi xong thì tắt công tắc
+            console.log("📤 [Máy A] Đã gửi dữ liệu thành công.");
+        } catch (e) { console.error("Lỗi gửi:", e); }
     } 
-    // TRƯỜNG HỢP 2: Nếu máy này không làm gì (chỉ đang xem)
+    // --- MÁY B: TẢI VỀ ---
     else {
         try {
-            const response = await fetch(HARD_FIXED_URL + "?t=" + new Date().getTime());
-            const result = await response.json();
-            if (result && result.data) {
-                // Kiểm tra xem dữ liệu trên Cloud có khác dữ liệu hiện tại không
-                if (JSON.stringify(db) !== JSON.stringify(result.data)) {
-                    db = result.data;
+            const res = await fetch(SYNC_URL + "?t=" + new Date().getTime());
+            const json = await res.json();
+            if (json && json.data) {
+                // Nếu dữ liệu khác nhau thì mới cập nhật
+                if (JSON.stringify(db) !== JSON.stringify(json.data)) {
+                    db = json.data;
                     localStorage.setItem("hk_v33_db", JSON.stringify(db));
-                    renderList(); // Vẽ lại bảng mà không cần F5
-                    console.log("📥 [Cloud] Đã cập nhật dữ liệu từ máy khác.");
+                    if (typeof renderList === 'function') renderList();
+                    if (typeof updateStats === 'function') updateStats();
+                    console.log("📥 [Máy B] Đã nhận dữ liệu mới.");
                 }
             }
-        } catch (e) { console.log("Đang chờ Cloud..."); }
+        } catch (e) { }
     }
-}, 10000); // 10 giây kiểm tra một lần
-
-// Hàm bổ trợ: Mỗi khi bạn Thêm/Sửa/Xóa, hãy gọi hàm này
-function markChange() {
-    hasLocalChange = true;
-    console.log("⚠️ Phát hiện thay đổi nội bộ, sẵn sàng sao lưu.");
 }
-// Nếu bạn vẫn muốn cố gắng bắt Ctrl + Tab + Enter (Có thể không hoạt động trên một số trình duyệt)
-// Hãy dùng đoạn code dự phòng này thay thế đoạn trên:
-/*
-let keysPressed = {};
-document.addEventListener('keydown', (event) => {
-    keysPressed[event.key] = true;
-    if (keysPressed['Control'] && keysPressed['Tab'] && keysPressed['Enter']) {
-        if(typeof openCloudModal === 'function') openCloudModal();
-    }
-});
-document.addEventListener('keyup', (event) => {
-    delete keysPressed[event.key];
-});
-*/
 
+// Chạy bộ máy mỗi 10 giây
+if (window.timerSync) clearInterval(window.timerSync);
+window.timerSync = setInterval(runAutoSync, 10000);
 </script>
 </body>
 </html>

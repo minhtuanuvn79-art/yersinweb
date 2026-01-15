@@ -12,6 +12,8 @@
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <style>
 :root {
     --bg-space: radial-gradient(circle at 50% 0%, #0a0a2a 0%, #050515 60%, #000005 100%);
@@ -2749,7 +2751,6 @@ tr:nth-child(n+10) {
   <div class="nav-item" id="nav-trash" onclick="switchPage('trash', this); renderTrash()"><span class="nav-icon">🗑️</span> Thùng Rác <span id="trashCount" style="margin-left:auto;font-size:10px; background: var(--neon-red); padding: 2px 6px; border-radius: 4px;">0</span></div>
   
   <div style="margin-top:auto; padding-top:20px; border-top:1px solid var(--glass-border)">
-    <div class="nav-item" id="btnCloudSync" onclick="openCloudModal()" style="color: #00eaff; display: none;"><span class="nav-icon">☁️</span> Cloud Sync</div>    <div class="nav-item" onclick="backupData()"><span class="nav-icon">💾</span> Backup</div>
     <div class="nav-item" onclick="$('restoreFile').click()"><span class="nav-icon">📂</span> Restore</div>
     <div class="nav-item" onclick="clearAllData()" style="color: #fca5a5;"><span class="nav-icon">🔥</span> Reset App</div>
     <input type="file" id="restoreFile" hidden accept=".json" onchange="restoreData(this)">
@@ -3527,34 +3528,6 @@ tr:nth-child(n+10) {
         </div>
     </div>
 </div>
-<div class="modal-overlay" id="cloudModal" style="display: none;">
-    <div class="confirm-box" style="border-color: #00eaff; box-shadow: 0 0 20px rgba(0, 234, 255, 0.2);">
-        <div class="confirm-header" style="color: #00eaff;">☁️ HỆ THỐNG ĐỒNG BỘ TỰ ĐỘNG</div>
-        <div class="confirm-body">
-            <div class="input-group">
-                <label>LIÊN KẾT DỮ LIỆU (CỐ ĐỊNH)</label>
-                <input id="cloudApiUrl" type="text" class="modern-input" 
-                       value="https://script.google.com/macros/s/AKfycbyIgvtL-0LdiCMOrakYZFKuG7ov5-NZjIYwWYQwqjK6_vrq6MdMd7SZCWU31NlM5nTP/exec" 
-                       readonly disabled
-                       style="background: rgba(0,0,0,0.2); color: #00eaff; cursor: not-allowed; border-color: #00eaff;">
-            </div>
-            <p style="text-align:center; font-size:11px; color:#4ade80; margin-top:15px; font-style: italic;">
-                ● Trạng thái: Đang kết nối và cập nhật liên tục...
-            </p>
-        </div>
-        <div class="confirm-footer">
-            <button class="btn" onclick="document.getElementById('cloudModal').style.display='none'">ĐÓNG BẢNG</button>
-        </div>
-    </div>
-</div>
-            </div>
-            <div id="cloudStatus" style="text-align:center; margin-top:10px; font-size:12px; font-style:italic; height:20px"></div>
-        </div>
-        <div class="confirm-footer">
-            <button class="btn" onclick="$('cloudModal').style.display='none'">Đóng</button>
-        </div>
-    </div>
-</div>
 <div class="modal-overlay" id="teacherEditModal">
     <div class="confirm-box" style="border-color: var(--neon-blue); width: 400px;">
         <div class="confirm-header" style="color: var(--neon-blue);">
@@ -3597,7 +3570,6 @@ const LS = {
     wheel: "hk_v33_wheel", tkb: "hk_v33_tkb",
     quick_buttons: "hk_v33_quick_btns" 
 };
-
 let teacherProfiles = JSON.parse(localStorage.getItem("hk_v33_teacher_profiles") || "{}");
 // --- THÊM DÒNG NÀY VÀO PHẦN KHAI BÁO BIẾN (Gần đầu file) ---
 const LS_HISTORY = "hk_v33_tkb_history"; // Tên khóa lưu trữ mới
@@ -3853,7 +3825,51 @@ function smartCleanName(str) {
     return s.toLowerCase().replace(/(^|\s)\S/g, l => l.toUpperCase());
 }function smartCleanClass(str) { if (!str) return ""; let clean = str.toString().trim().toUpperCase().replace(/\s+/g, ''); clean = clean.replace(/LỚP/g, ''); return "Lớp " + clean; }
 function compressImage(file, maxWidth, quality, callback) { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = event => { const img = new Image(); img.src = event.target.result; img.onload = () => { let width = img.width; let height = img.height; if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); const dataUrl = canvas.toDataURL('image/jpeg', quality); callback(dataUrl); }; }; }
+function saveData() {
+    try {
+        // --- PHẦN 1: LƯU VÀO MÁY CÁ NHÂN (BACKUP) ---
+        // Giữ nguyên logic cũ để đảm bảo web chạy nhanh và không mất dữ liệu khi mất mạng
+        localStorage.setItem(LS.students, JSON.stringify(students));
+        localStorage.setItem(LS.trash, JSON.stringify(trash));
+        localStorage.setItem(LS.avatars, JSON.stringify(avatars));
+        localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
+        localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
+        localStorage.setItem(LS.grades, JSON.stringify(grades));
+        localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
+        
+        // Lưu nút bấm nhanh (nếu có)
+        if (typeof quickButtons !== 'undefined') {
+            localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
+        }
 
+        // Cập nhật số lượng thùng rác trên menu
+        if (typeof updateTrashCount === 'function') updateTrashCount();
+
+        // --- PHẦN 2: ĐỒNG BỘ LÊN VŨ TRỤ (FIREBASE) ---
+        // Chỉ chạy khi đã kết nối thành công
+        if (typeof dbRef !== 'undefined') {
+            // Sử dụng .update() thay vì .set() để an toàn hơn
+            dbRef.update({
+                students: students,       // Danh sách học sinh
+                trash: trash,             // Thùng rác
+                avatars: avatars,         // Ảnh đại diện
+                hk: db.hk,                // Dữ liệu Hạnh kiểm
+                acad: db.acad,            // Dữ liệu Sổ điểm
+                grades: grades,           // Điểm số chi tiết
+                tkb: tkbData,             // Thời khóa biểu
+                quick_buttons: quickButtons, // Cấu hình nút chấm điểm
+                last_updated: new Date().toISOString() // Đánh dấu thời gian
+            }).catch(err => {
+                console.error("⚠️ Lỗi đồng bộ đám mây:", err);
+                // Không hiện thông báo lỗi lên màn hình để tránh làm phiền người dùng
+            });
+        }
+
+    } catch (e) {
+        console.error("Lỗi lưu trữ cục bộ:", e);
+        if (typeof showToast === 'function') showToast("Lỗi lưu trữ! Kiểm tra bộ nhớ.", "error");
+    }
+}
 function generateAvatar(name) {
     if (!name) return "";
     if (avatarCache[name]) return avatarCache[name];
@@ -8619,142 +8635,7 @@ function performCustomScroll() {
 
     autoScrollFrame = requestAnimationFrame(performCustomScroll);
 }
-// ==========================================
-// ☁️ CLOUD SYNC LOGIC (GOOGLE SHEETS)
-// ==========================================
 
-function openCloudModal() {
-    const modal = document.getElementById('cloudModal');
-    const input = document.getElementById('cloudApiUrl');
-    const HARD_URL = "https://script.google.com/macros/s/AKfycbyIgvtL-0LdiCMOrakYZFKuG7ov5-NZjIYwWYQwqjK6_vrq6MdMd7SZCWU31NlM5nTP/exec";
-
-    if (modal) modal.style.display = 'flex';
-    
-    // Kiểm tra kỹ sự tồn tại của ô input trước khi gán giá trị
-    if (input) {
-        input.value = HARD_URL;
-    }
-}
-
-function saveCloudConfig() {
-    const url = $('cloudApiUrl').value.trim();
-    if(url) {
-        localStorage.setItem("hk_v33_cloud_url", url);
-        showToast("Đã lưu API URL!", "success");
-    }
-}
-
-// Hàm lấy toàn bộ dữ liệu hiện tại (giống hàm Backup)
-function getFullDataJSON() {
-    return JSON.stringify({
-        students, trash, avatars, db, grades, appConfig, tkbData, quickButtons,
-        // Lưu thêm các cấu hình mới nếu có
-        weekData, classData
-    });
-}
-
-// 1. GỬI LÊN (UPLOAD)
-function syncToCloud() {
-    const url = localStorage.getItem("hk_v33_cloud_url");
-    if(!url) return showToast("Vui lòng nhập API URL trước!", "error");
-    
-    const btn = $('btnSyncUp');
-    const status = $('cloudStatus');
-    
-    if(!confirm("Dữ liệu trên Cloud sẽ bị ghi đè bởi dữ liệu hiện tại của máy này. Tiếp tục?")) return;
-
-    btn.disabled = true;
-    btn.innerText = "⏳ Đang gửi...";
-    status.innerText = "Đang nén và gửi dữ liệu lên Google Sheets...";
-    status.style.color = "var(--neon-gold)";
-
-    const dataPayload = getFullDataJSON();
-
-    fetch(url, {
-        method: "POST",
-        mode: "no-cors", // Quan trọng để gửi được tới Google Script
-        headers: { "Content-Type": "text/plain" },
-        body: dataPayload
-    })
-    .then(() => {
-        // Vì mode no-cors không trả về response đọc được, ta giả định thành công nếu không báo lỗi mạng
-        // Tuy nhiên, Google Script cần thời gian xử lý
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.innerText = "⬆️ Gửi Dữ Liệu Lên Cloud";
-            status.innerText = "✅ Đã gửi lệnh đồng bộ! Kiểm tra Sheet sau vài giây.";
-            status.style.color = "var(--neon-green)";
-            showToast("Đã gửi dữ liệu lên Cloud!", "success");
-        }, 2000);
-    })
-    .catch(err => {
-        btn.disabled = false;
-        btn.innerText = "⬆️ Gửi Dữ Liệu Lên Cloud";
-        status.innerText = "❌ Lỗi kết nối: " + err.message;
-        status.style.color = "var(--neon-red)";
-    });
-}
-
-// ==========================================
-// 🔄 AUTO SAVE LOGIC (LƯU TỰ ĐỘNG)
-// ==========================================
-
-let autoSaveTimer = null;
-
-// Hàm bật tắt chế độ tự động
-function toggleAutoSave() {
-    const isChecked = document.getElementById('autoSaveToggle').checked;
-    const status = document.getElementById('cloudStatus');
-    
-    if (isChecked) {
-        // Lưu trạng thái vào bộ nhớ để lần sau mở web nó nhớ
-        localStorage.setItem("hk_v33_autosave", "true");
-        
-        // Kích hoạt bộ đếm: Cứ 60000ms (60 giây) thì chạy hàm silentSync một lần
-        startAutoSaveTimer();
-        
-        status.innerText = "✅ Đã bật chế độ tự động lưu (60s).";
-        status.style.color = "var(--neon-green)";
-    } else {
-        localStorage.setItem("hk_v33_autosave", "false");
-        
-        // Tắt bộ đếm
-        clearInterval(autoSaveTimer);
-        
-        status.innerText = "zzz Đã tắt tự động lưu.";
-        status.style.color = "white";
-    }
-}
-
-
-
-async function silentSyncToCloud() {
-    // NẾU không có thay đổi gì trên máy này THÌ thoát ngay, không được đè lên Cloud
-    if (!hasLocalChange) return; 
-
-    const URL = "https://script.google.com/macros/s/AKfycbyIgvtL-0LdiCMOrakYZFKuG7ov5-NZjIYwWYQwqjK6_vrq6MdMd7SZCWU31NlM5nTP/exec";
-    try {
-        await fetch(URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: db })
-        });
-        hasLocalChange = false; // Up xong thì reset trạng thái về "chưa có thay đổi"
-        console.log("✅ Đã sao lưu bản mới nhất lên Cloud.");
-    } catch (e) {
-        console.error("Lỗi sao lưu:", e);
-    }
-}
-
-// Kích hoạt lại trạng thái cũ khi tải lại trang
-window.addEventListener('load', function() {
-    const isAuto = localStorage.getItem("hk_v33_autosave");
-    if (isAuto === "true") {
-        document.getElementById('autoSaveToggle').checked = true;
-        startAutoSaveTimer();
-    }
-});
 // --- LOGIC CHỈNH SỬA HỒ SƠ GIÁO VIÊN ---
 let currentEditingTeacher = null;
 
@@ -9597,142 +9478,64 @@ function schRunAI() {
 
     }, 100);
 }
-function triggerCloudSync() {
-    hasLocalChange = true;
-    console.log("🚀 Đã kích hoạt đèn báo đồng bộ Cloud.");
+// --- BẮT ĐẦU CẤU HÌNH ĐỒNG BỘ MÂY (FIREBASE) ---
+
+// 1. Dán cấu hình của bạn vào đây
+const firebaseConfig = {
+  apiKey: "AIzaSyCJvnMlhF36928AEAqKW1MQRQn-rI_CEe0",
+  authDomain: "yersinweb-e2e3f.firebaseapp.com",
+  projectId: "yersinweb-e2e3f",
+  storageBucket: "yersinweb-e2e3f.firebasestorage.app",
+  messagingSenderId: "606196266164",
+  appId: "1:606196266164:web:959df54c6d30a9830293e1",
+  measurementId: "G-LGLPEBHFLT"
+};
+
+// 2. Khởi tạo kết nối
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
 }
-/* ============================================================
-   TÍNH NĂNG ĐỒNG BỘ DỮ LIỆU - GALAXY SMART EDITION (FULL)
-   ============================================================ */
+const dbRef = firebase.database().ref('yersin_data'); // Dữ liệu sẽ lưu trong thư mục này
 
-// 1. Khởi tạo biến kiểm soát (Cờ hiệu)
-if (typeof window.hasLocalChange === 'undefined') {
-    window.hasLocalChange = false;
-}
-
-// 2. Hàm Lưu Dữ Liệu (Đã nâng cấp để bật cờ đồng bộ)
-// Hàm này thay thế hoàn toàn hàm saveData() cũ của bạn
-function saveData() {
-    try {
-        // --- Phần A: Lưu vào máy (LocalStorage) ---
-        // (Giữ nguyên các key mà bạn đang dùng trong dự án)
-        if (typeof students !== 'undefined') localStorage.setItem('students', JSON.stringify(students));
-        if (typeof trash !== 'undefined') localStorage.setItem('trash', JSON.stringify(trash));
-        if (typeof avatars !== 'undefined') localStorage.setItem('avatars', JSON.stringify(avatars));
-        if (typeof db !== 'undefined' && db.hk) localStorage.setItem('hk_data', JSON.stringify(db.hk));
-        if (typeof db !== 'undefined' && db.acad) localStorage.setItem('acad_data', JSON.stringify(db.acad));
-        if (typeof grades !== 'undefined') localStorage.setItem('grades', JSON.stringify(grades));
-        if (typeof prizes !== 'undefined') localStorage.setItem('wheel', JSON.stringify(prizes));
-        if (typeof tkbData !== 'undefined') localStorage.setItem('tkb', JSON.stringify(tkbData));
-        if (typeof quickButtons !== 'undefined') localStorage.setItem('quick_buttons', JSON.stringify(quickButtons));
-        
-        // Lưu các biến cài đặt khác nếu có...
-        // localStorage.setItem('KEY_KHAC', ...);
-
-        // --- Phần B: BẬT CÔNG TẮC ĐỒNG BỘ (Quan trọng nhất) ---
-        window.hasLocalChange = true; 
-        console.log("💾 [Save] Đã lưu offline & Đánh dấu cần gửi đi!");
-
-    } catch (e) {
-        console.error("Lỗi khi lưu dữ liệu:", e);
-    }
-}
-
-// 3. Vòng lặp Đồng bộ tự động (Chạy mỗi 5 giây)
-setInterval(async function() {
-    // Lấy link API từ ô nhập liệu (ID: cloudApiUrl)
-    const urlInput = document.getElementById('cloudApiUrl');
-    // Chỉ chạy nếu có link và link ĐÚNG (phải có /exec, không dùng /dev)
-    const SYNC_URL = urlInput ? urlInput.value.trim() : "";
+// 3. Hàm lắng nghe dữ liệu từ Máy khác (Tự động cập nhật khi có thay đổi)
+function listenToCloud() {
+    console.log("Đang kết nối đến Trạm Vũ Trụ...");
     
-    if (!SYNC_URL || !SYNC_URL.includes('/exec')) {
-        return; // Link sai hoặc chưa nhập thì bỏ qua
-    }
-
-    // --- TRƯỜNG HỢP 1: MÁY NÀY CÓ DỮ LIỆU MỚI (GỬI ĐI) ---
-    if (window.hasLocalChange === true) {
-        try {
-            // Gom dữ liệu để gửi
-            const dataToSync = {
-                students: (typeof students !== 'undefined') ? students : [],
-                grades: (typeof grades !== 'undefined') ? grades : {},
-                hk: (typeof db !== 'undefined') ? db.hk : {},
-                acad: (typeof db !== 'undefined') ? db.acad : {},
-                tkb: (typeof tkbData !== 'undefined') ? tkbData : {},
-                avatars: (typeof avatars !== 'undefined') ? avatars : {}
-            };
-
-            console.log("... Đang gửi dữ liệu lên mây ...");
+    dbRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            // Cập nhật biến toàn cục nhưng KHÔNG XÓA DỮ LIỆU CŨ nếu trên mây chưa có
+            // Chỉ cập nhật những gì trên mây gửi về
+            if (data.students) students = data.students;
+            if (data.trash) trash = data.trash || [];
             
-            await fetch(SYNC_URL, {
-                method: "POST",
-                mode: "no-cors", // Quan trọng để không bị chặn
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify(dataToSync)
-            });
-
-            window.hasLocalChange = false; // Gửi xong thì tắt cờ
-            console.log("📤 [Upload] Đã gửi dữ liệu thành công!");
+            // Hợp nhất dữ liệu Hạnh kiểm (Merge thay vì ghi đè hoàn toàn nếu cần)
+            if (data.hk) db.hk = data.hk;
             
-        } catch (e) {
-            console.error("❌ Lỗi gửi (Upload):", e);
+            if (data.acad) db.acad = data.acad;
+            if (data.grades) grades = data.grades;
+            if (data.tkb) tkbData = data.tkb;
+            if (data.avatars) avatars = data.avatars;
+            
+            // Sau khi nhận dữ liệu mới, lưu ngay vào LocalStorage máy này để backup
+            // (Nhưng không gọi saveData() để tránh vòng lặp vô tận)
+            localStorage.setItem("hk_v33_students", JSON.stringify(students));
+            localStorage.setItem("hk_v33_data", JSON.stringify(db.hk));
+            // ... (Lưu các biến khác tương tự nếu cần)
+
+            // Vẽ lại giao diện ngay lập tức
+            if (typeof renderList === 'function') renderList();
+            if (typeof renderTKBCards === 'function') renderTKBCards();
+            
+            console.log("✅ Đã đồng bộ dữ liệu mới nhất!");
         }
-    } 
-    
-    // --- TRƯỜNG HỢP 2: KHÔNG CÓ THAY ĐỔI (TẢI VỀ TỪ MÁY KHÁC) ---
-    else {
-        try {
-            // Thêm t=... để không bị trình duyệt cache dữ liệu cũ
-            const res = await fetch(SYNC_URL + "?t=" + new Date().getTime());
-            const json = await res.json();
-            
-            // Kiểm tra nếu dữ liệu tải về hợp lệ
-            if (json && json.status === 'success' && json.data) {
-                const cloud = json.data;
-                let needUpdate = false;
+    });
+}
 
-                // So sánh đơn giản: Nếu số lượng học sinh khác nhau -> Cập nhật
-                if (typeof students !== 'undefined' && cloud.students && JSON.stringify(cloud.students) !== JSON.stringify(students)) {
-                    students = cloud.students;
-                    needUpdate = true;
-                }
-                
-                // So sánh điểm số
-                if (typeof grades !== 'undefined' && cloud.grades && JSON.stringify(cloud.grades) !== JSON.stringify(grades)) {
-                    grades = cloud.grades;
-                    needUpdate = true;
-                }
+// 4. Kích hoạt lắng nghe ngay khi bật app
+window.addEventListener('load', listenToCloud);
 
-                // So sánh dữ liệu khác (HK, TKB...)
-                if (typeof db !== 'undefined' && cloud.hk && JSON.stringify(cloud.hk) !== JSON.stringify(db.hk)) {
-                    db.hk = cloud.hk;
-                    needUpdate = true;
-                }
-                
-                // NẾU CÓ CẬP NHẬT MỚI
-                if (needUpdate) {
-                    console.log("📥 [Download] Có dữ liệu mới từ máy khác. Đang cập nhật...");
-                    
-                    // Lưu ngay vào LocalStorage để không mất
-                    saveData(); 
-                    // Tắt cờ ngay lập tức vì đây là dữ liệu tải về, không phải mình tự sửa
-                    window.hasLocalChange = false; 
-
-                    // Vẽ lại giao diện (Render)
-                    if (typeof renderList === 'function') renderList();
-                    if (typeof updateStats === 'function') updateStats();
-                    if (typeof renderTKB === 'function') renderTKB();
-                    
-                    // Hiển thị thông báo nhỏ (nếu có thư viện Toast)
-                    // alert("Dữ liệu đã được cập nhật từ máy khác!");
-                }
-            }
-        } catch (e) {
-            // Lỗi tải về thường xảy ra khi mạng yếu hoặc JSON sai, có thể bỏ qua
-            // console.warn("Lỗi tải (Download):", e);
-        }
-    }
-}, 5000); // Chu kỳ: 5 giây kiểm tra 1 lần
+// --- KẾT THÚC CẤU HÌNH ---
 // Khi tạo HTML trong vòng lặp:
 // html += `<span class="badge-rank ${getRankClass(hs.hanhKiem)}">${hs.hanhKiem}</span>`;
 $('search').oninput = renderList; 

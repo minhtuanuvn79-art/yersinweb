@@ -3561,6 +3561,61 @@ tr:nth-child(n+10) {
 </div>
 </body>
 <script>
+// --- BẮT ĐẦU CẤU HÌNH ĐỒNG BỘ MÂY (FIREBASE) ---
+
+// 1. Dán cấu hình của bạn vào đây
+const firebaseConfig = {
+  apiKey: "AIzaSyCJvnMlhF36928AEAqKW1MQRQn-rI_CEe0",
+  authDomain: "yersinweb-e2e3f.firebaseapp.com",
+  projectId: "yersinweb-e2e3f",
+  storageBucket: "yersinweb-e2e3f.firebasestorage.app",
+  messagingSenderId: "606196266164",
+  appId: "1:606196266164:web:959df54c6d30a9830293e1",
+  measurementId: "G-LGLPEBHFLT"
+};
+
+// 2. Khởi tạo kết nối
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+var dbRef = firebase.database().ref('yersin_data');
+// 3. Hàm lắng nghe dữ liệu từ Máy khác (Tự động cập nhật khi có thay đổi)
+function listenToCloud() {
+    console.log("Đang kết nối đến Trạm Vũ Trụ...");
+    
+    dbRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            // Cập nhật biến toàn cục nhưng KHÔNG XÓA DỮ LIỆU CŨ nếu trên mây chưa có
+            // Chỉ cập nhật những gì trên mây gửi về
+            if (data.students) students = data.students;
+            if (data.trash) trash = data.trash || [];
+            
+            // Hợp nhất dữ liệu Hạnh kiểm (Merge thay vì ghi đè hoàn toàn nếu cần)
+            if (data.hk) db.hk = data.hk;
+            
+            if (data.acad) db.acad = data.acad;
+            if (data.grades) grades = data.grades;
+            if (data.tkb) tkbData = data.tkb;
+            if (data.avatars) avatars = data.avatars;
+            
+            // Sau khi nhận dữ liệu mới, lưu ngay vào LocalStorage máy này để backup
+            // (Nhưng không gọi saveData() để tránh vòng lặp vô tận)
+            localStorage.setItem("hk_v33_students", JSON.stringify(students));
+            localStorage.setItem("hk_v33_data", JSON.stringify(db.hk));
+            // ... (Lưu các biến khác tương tự nếu cần)
+
+            // Vẽ lại giao diện ngay lập tức
+            if (typeof renderList === 'function') renderList();
+            if (typeof renderTKBCards === 'function') renderTKBCards();
+            
+            console.log("✅ Đã đồng bộ dữ liệu mới nhất!");
+        }
+    });
+}
+
+// 4. Kích hoạt lắng nghe ngay khi bật app
+window.addEventListener('load', listenToCloud);
 // ======================================================
 // 1. KHỞI TẠO, BIẾN CỐT LÕI & CẤU HÌNH
 // ======================================================
@@ -3827,47 +3882,59 @@ function smartCleanName(str) {
 function compressImage(file, maxWidth, quality, callback) { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = event => { const img = new Image(); img.src = event.target.result; img.onload = () => { let width = img.width; let height = img.height; if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); const dataUrl = canvas.toDataURL('image/jpeg', quality); callback(dataUrl); }; }; }
 function saveData() {
     try {
-        // --- PHẦN 1: LƯU VÀO MÁY CÁ NHÂN (BACKUP) ---
-        // Giữ nguyên logic cũ để đảm bảo web chạy nhanh và không mất dữ liệu khi mất mạng
-        localStorage.setItem(LS.students, JSON.stringify(students));
-        localStorage.setItem(LS.trash, JSON.stringify(trash));
-        localStorage.setItem(LS.avatars, JSON.stringify(avatars));
-        localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
-        localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
-        localStorage.setItem(LS.grades, JSON.stringify(grades));
-        localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
+        // --- PHẦN 1: LƯU VÀO MÁY (LOCALSTORAGE) ---
+        // Giữ nguyên các key "hk_v33_..." để không bị mất dữ liệu cũ
+        localStorage.setItem("hk_v33_students", JSON.stringify(students));
+        localStorage.setItem("hk_v33_trash", JSON.stringify(trash));
+        localStorage.setItem("hk_v33_avatars", JSON.stringify(avatars));
         
-        // Lưu nút bấm nhanh (nếu có)
+        // Lưu dữ liệu Hạnh kiểm & Học tập (nếu db tồn tại)
+        if (typeof db !== 'undefined') {
+            localStorage.setItem("hk_v33_data", JSON.stringify(db.hk));
+            localStorage.setItem("hk_v33_acad_data", JSON.stringify(db.acad));
+        }
+        
+        localStorage.setItem("hk_v33_grades", JSON.stringify(grades));
+        localStorage.setItem("hk_v33_tkb", JSON.stringify(tkbData));
+        
+        // Lưu nút chấm nhanh (kiểm tra nếu biến tồn tại)
         if (typeof quickButtons !== 'undefined') {
-            localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
+            localStorage.setItem("hk_v33_quick_buttons", JSON.stringify(quickButtons));
         }
 
-        // Cập nhật số lượng thùng rác trên menu
-        if (typeof updateTrashCount === 'function') updateTrashCount();
+        // Cập nhật số lượng thùng rác trên menu (nếu hàm tồn tại)
+        if (typeof updateTrashCount === 'function') {
+            updateTrashCount();
+        }
 
-        // --- PHẦN 2: ĐỒNG BỘ LÊN VŨ TRỤ (FIREBASE) ---
-        // Chỉ chạy khi đã kết nối thành công
-        if (typeof dbRef !== 'undefined') {
-            // Sử dụng .update() thay vì .set() để an toàn hơn
-            dbRef.update({
-                students: students,       // Danh sách học sinh
-                trash: trash,             // Thùng rác
-                avatars: avatars,         // Ảnh đại diện
-                hk: db.hk,                // Dữ liệu Hạnh kiểm
-                acad: db.acad,            // Dữ liệu Sổ điểm
-                grades: grades,           // Điểm số chi tiết
-                tkb: tkbData,             // Thời khóa biểu
-                quick_buttons: quickButtons, // Cấu hình nút chấm điểm
-                last_updated: new Date().toISOString() // Đánh dấu thời gian
-            }).catch(err => {
-                console.error("⚠️ Lỗi đồng bộ đám mây:", err);
-                // Không hiện thông báo lỗi lên màn hình để tránh làm phiền người dùng
+        // --- PHẦN 2: ĐỒNG BỘ LÊN MÂY (FIREBASE) ---
+        // Kiểm tra an toàn: Chỉ gửi nếu dbRef đã được khởi tạo và có mạng
+        // Sử dụng window.dbRef hoặc kiểm tra typeof để tránh lỗi ReferenceError
+        var safeDbRef = (typeof dbRef !== 'undefined') ? dbRef : (window.dbRef || null);
+
+        if (safeDbRef) {
+            safeDbRef.update({
+                students: students,
+                trash: trash,
+                avatars: avatars,
+                hk: (typeof db !== 'undefined' ? db.hk : {}),
+                acad: (typeof db !== 'undefined' ? db.acad : {}),
+                grades: grades,
+                tkb: tkbData,
+                // Gửi cấu hình nút chấm nhanh (nếu có)
+                quick_buttons: (typeof quickButtons !== 'undefined' ? quickButtons : null),
+                last_updated: new Date().toISOString()
+            }).catch(function(err) {
+                // Lỗi ngầm (ví dụ mất mạng), chỉ log ra console chứ không báo đỏ màn hình
+                console.log("⚠️ Đang offline hoặc chưa đồng bộ được: " + err.message);
             });
+        } else {
+            console.log("⏳ Đang đợi kết nối máy chủ...");
         }
 
     } catch (e) {
-        console.error("Lỗi lưu trữ cục bộ:", e);
-        if (typeof showToast === 'function') showToast("Lỗi lưu trữ! Kiểm tra bộ nhớ.", "error");
+        // Bắt lỗi tổng quát để web không bao giờ bị đơ
+        console.error("Lỗi trong quá trình lưu:", e);
     }
 }
 function generateAvatar(name) {
@@ -9478,62 +9545,7 @@ function schRunAI() {
 
     }, 100);
 }
-// --- BẮT ĐẦU CẤU HÌNH ĐỒNG BỘ MÂY (FIREBASE) ---
 
-// 1. Dán cấu hình của bạn vào đây
-const firebaseConfig = {
-  apiKey: "AIzaSyCJvnMlhF36928AEAqKW1MQRQn-rI_CEe0",
-  authDomain: "yersinweb-e2e3f.firebaseapp.com",
-  projectId: "yersinweb-e2e3f",
-  storageBucket: "yersinweb-e2e3f.firebasestorage.app",
-  messagingSenderId: "606196266164",
-  appId: "1:606196266164:web:959df54c6d30a9830293e1",
-  measurementId: "G-LGLPEBHFLT"
-};
-
-// 2. Khởi tạo kết nối
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-const dbRef = firebase.database().ref('yersin_data'); // Dữ liệu sẽ lưu trong thư mục này
-
-// 3. Hàm lắng nghe dữ liệu từ Máy khác (Tự động cập nhật khi có thay đổi)
-function listenToCloud() {
-    console.log("Đang kết nối đến Trạm Vũ Trụ...");
-    
-    dbRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            // Cập nhật biến toàn cục nhưng KHÔNG XÓA DỮ LIỆU CŨ nếu trên mây chưa có
-            // Chỉ cập nhật những gì trên mây gửi về
-            if (data.students) students = data.students;
-            if (data.trash) trash = data.trash || [];
-            
-            // Hợp nhất dữ liệu Hạnh kiểm (Merge thay vì ghi đè hoàn toàn nếu cần)
-            if (data.hk) db.hk = data.hk;
-            
-            if (data.acad) db.acad = data.acad;
-            if (data.grades) grades = data.grades;
-            if (data.tkb) tkbData = data.tkb;
-            if (data.avatars) avatars = data.avatars;
-            
-            // Sau khi nhận dữ liệu mới, lưu ngay vào LocalStorage máy này để backup
-            // (Nhưng không gọi saveData() để tránh vòng lặp vô tận)
-            localStorage.setItem("hk_v33_students", JSON.stringify(students));
-            localStorage.setItem("hk_v33_data", JSON.stringify(db.hk));
-            // ... (Lưu các biến khác tương tự nếu cần)
-
-            // Vẽ lại giao diện ngay lập tức
-            if (typeof renderList === 'function') renderList();
-            if (typeof renderTKBCards === 'function') renderTKBCards();
-            
-            console.log("✅ Đã đồng bộ dữ liệu mới nhất!");
-        }
-    });
-}
-
-// 4. Kích hoạt lắng nghe ngay khi bật app
-window.addEventListener('load', listenToCloud);
 
 // --- KẾT THÚC CẤU HÌNH ---
 // Khi tạo HTML trong vòng lặp:

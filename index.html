@@ -3769,37 +3769,58 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 var dbRef = firebase.database().ref('yersin_data');
-// 3. Hàm lắng nghe dữ liệu từ Máy khác (Tự động cập nhật khi có thay đổi)
+// --- SỬA LẠI HÀM ĐỒNG BỘ MÂY ---
 function listenToCloud() {
-    console.log("Đang kết nối đến Trạm Vũ Trụ...");
+    console.log("📡 Đang kết nối đến Trạm Vũ Trụ...");
     
     dbRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
-            // Cập nhật biến toàn cục nhưng KHÔNG XÓA DỮ LIỆU CŨ nếu trên mây chưa có
-            // Chỉ cập nhật những gì trên mây gửi về
+            console.log("📥 Đã nhận dữ liệu mới từ Mây!");
+
+            // 1. Cập nhật biến toàn cục
             if (data.students) students = data.students;
             if (data.trash) trash = data.trash || [];
             
-            // Hợp nhất dữ liệu Hạnh kiểm (Merge thay vì ghi đè hoàn toàn nếu cần)
+            // Merge dữ liệu Hạnh Kiểm & Sổ Điểm
             if (data.hk) db.hk = data.hk;
-            
             if (data.acad) db.acad = data.acad;
+            
             if (data.grades) grades = data.grades;
             if (data.tkb) tkbData = data.tkb;
             if (data.avatars) avatars = data.avatars;
             
-            // Sau khi nhận dữ liệu mới, lưu ngay vào LocalStorage máy này để backup
-            // (Nhưng không gọi saveData() để tránh vòng lặp vô tận)
-            localStorage.setItem("hk_v33_students", JSON.stringify(students));
-            localStorage.setItem("hk_v33_data", JSON.stringify(db.hk));
-            // ... (Lưu các biến khác tương tự nếu cần)
+            // Cập nhật cấu hình nút bấm nếu có
+            if (data.quick_buttons) quickButtons = data.quick_buttons;
 
-            // Vẽ lại giao diện ngay lập tức
+            // 2. [QUAN TRỌNG] Lưu vào LocalStorage với ĐÚNG KEY (LS.*)
+            // Tuyệt đối KHÔNG gọi hàm saveData() ở đây để tránh vòng lặp vô tận
+            localStorage.setItem(LS.students, JSON.stringify(students));
+            localStorage.setItem(LS.trash, JSON.stringify(trash));
+            localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
+            localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
+            localStorage.setItem(LS.grades, JSON.stringify(grades));
+            localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
+            localStorage.setItem(LS.avatars, JSON.stringify(avatars));
+            
+            if (quickButtons) {
+                localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
+            }
+
+            // 3. Cập nhật giao diện ngay lập tức
+            // Cần kiểm tra xem các hàm vẽ giao diện có tồn tại không trước khi gọi
             if (typeof renderList === 'function') renderList();
             if (typeof renderTKBCards === 'function') renderTKBCards();
+            if (typeof updateTrashCount === 'function') updateTrashCount();
+            if (typeof syncClassesFromData === 'function') syncClassesFromData(); // Đồng bộ lại danh sách lớp
             
-            console.log("✅ Đã đồng bộ dữ liệu mới nhất!");
+            // Nếu đang mở Modal chi tiết HS, cập nhật lại luôn
+            if (currentID && document.getElementById('profileModal').style.display === 'flex') {
+                if (currentMode === 'hk') renderHKProfile(); 
+                else renderAcadProfile();
+            }
+            
+            console.log("✅ Đồng bộ hoàn tất!");
         }
     });
 }
@@ -3810,9 +3831,14 @@ window.addEventListener('load', listenToCloud);
 // 1. KHỞI TẠO, BIẾN CỐT LÕI & CẤU HÌNH
 // ======================================================
 const LS = { 
-    students: "hk_v33_list", avatars: "hk_v33_avt", trash: "hk_v33_trash",
-    hk_data: "hk_v33_data_hk", acad_data: "hk_v33_data_acad", grades: "hk_v33_grades",
-    wheel: "hk_v33_wheel", tkb: "hk_v33_tkb",
+    students: "hk_v33_list", 
+    avatars: "hk_v33_avt", 
+    trash: "hk_v33_trash",
+    hk_data: "hk_v33_data_hk", 
+    acad_data: "hk_v33_data_acad", 
+    grades: "hk_v33_grades",
+    wheel: "hk_v33_wheel", 
+    tkb: "hk_v33_tkb",
     quick_buttons: "hk_v33_quick_btns" 
 };
 let teacherProfiles = JSON.parse(localStorage.getItem("hk_v33_teacher_profiles") || "{}");
@@ -4119,15 +4145,14 @@ function compressImage(file, maxWidth, quality, callback) { const reader = new F
 // ============================================================
 function saveData() {
     try {
-        // --- LƯU VÀO LOCALSTORAGE (BỘ NHỚ TRÌNH DUYỆT) ---
-        // Danh sách học sinh là quan trọng nhất - Dùng chung cho cả app
-        localStorage.setItem(LS.students, JSON.stringify(students));
+        // --- 1. LƯU VÀO LOCALSTORAGE (BỘ NHỚ TRÌNH DUYỆT) ---
+        // Sử dụng đối tượng LS để đảm bảo tên khóa (Key) nhất quán với hàm init()
         
-        // Các dữ liệu phụ trợ
+        localStorage.setItem(LS.students, JSON.stringify(students));
         localStorage.setItem(LS.trash, JSON.stringify(trash));
         localStorage.setItem(LS.avatars, JSON.stringify(avatars));
         
-        // Dữ liệu Hạnh kiểm & Sổ điểm (Lưu riêng object nhưng vẫn map theo ID học sinh trong danh sách chung)
+        // Lưu dữ liệu Hạnh kiểm & Sổ điểm
         if (typeof db !== 'undefined') {
             localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
             localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
@@ -4136,17 +4161,23 @@ function saveData() {
         localStorage.setItem(LS.grades, JSON.stringify(grades));
         localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
         
+        // Lưu cấu hình nút bấm (nếu có tùy chỉnh)
         if (typeof quickButtons !== 'undefined') {
             localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
         }
 
+        // Cập nhật số lượng thùng rác trên giao diện ngay lập tức
         if (typeof updateTrashCount === 'function') updateTrashCount();
 
-        // --- ĐỒNG BỘ FIREBASE (NẾU CÓ) ---
+        // --- 2. ĐỒNG BỘ LÊN FIREBASE (MÂY) ---
+        // Kiểm tra xem kết nối Firebase có tồn tại không
         var safeDbRef = (typeof dbRef !== 'undefined') ? dbRef : (window.dbRef || null);
+        
         if (safeDbRef) {
+            // Gửi toàn bộ dữ liệu lên mây
+            // Dùng .update() để cập nhật các trường thay đổi
             safeDbRef.update({
-                students: students, // Đẩy danh sách chung lên mây
+                students: students,
                 trash: trash,
                 avatars: avatars,
                 hk: (typeof db !== 'undefined' ? db.hk : {}),
@@ -4155,11 +4186,11 @@ function saveData() {
                 tkb: tkbData,
                 quick_buttons: (typeof quickButtons !== 'undefined' ? quickButtons : null),
                 last_updated: new Date().toISOString()
-            }).catch(err => console.log("⚠️ Offline mode: " + err.message));
+            }).catch(err => console.log("⚠️ Lỗi mạng (Offline mode): " + err.message));
         }
 
     } catch (e) {
-        console.error("Lỗi lưu dữ liệu:", e);
+        console.error("❌ Lỗi nghiêm trọng khi lưu dữ liệu:", e);
     }
 }
 function generateAvatar(name) {

@@ -5738,24 +5738,40 @@ function renderHKProfile() {
     let color = "#f43f5e";
     if (d.final >= 80) color = "#4ade80"; else if (d.final >= 65) color = "#22d3ee"; else if (d.final >= 50) color = "#fbbf24";
 
-    // Tạo danh sách lịch sử (Timeline)
-    let timeline = d.history.slice().reverse().map(h => `
+    // --- CẬP NHẬT MỚI: THÊM NÚT SỬA/XÓA VÀO LỊCH SỬ ---
+    // Lưu ý: Dùng map((h, index)) để lấy vị trí
+    // Vì mảng hiển thị đảo ngược (reverse), ta cần tính lại index gốc
+    // Index gốc = (độ dài mảng - 1) - index hiển thị
+    
+    let historyLen = d.history.length;
+    let timeline = d.history.slice().reverse().map((h, viewIndex) => {
+        const realIndex = (historyLen - 1) - viewIndex; // Tính index thật trong mảng gốc
+        
+        return `
         <div class="timeline-item ${h.val>0?'pos':'neg'}" style="padding: 6px 0; border-bottom:1px dashed rgba(255,255,255,0.05);">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div class="t-desc" style="font-size:12px; font-weight:500;">${h.desc}</div>
-                <div class="t-val" style="font-size:12px; font-weight:bold; color:${h.val>0?'var(--neon-green)':'var(--neon-red)'}">
-                    ${h.val>0?'+':''}${h.val}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div style="flex:1">
+                    <div class="t-desc" style="font-size:12px; font-weight:500;">${h.desc}</div>
+                    <div class="t-time" style="font-size:9px; opacity:0.6; margin-top:2px;">${new Date(h.time).toLocaleString()}</div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px">
+                    <div class="t-val" style="font-size:12px; font-weight:bold; color:${h.val>0?'var(--neon-green)':'var(--neon-red)'}">
+                        ${h.val>0?'+':''}${h.val}
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <span onclick="editHistoryItem('hk', ${realIndex})" style="cursor:pointer; opacity:0.6; font-size:10px" title="Sửa">✏️</span>
+                        <span onclick="deleteHistoryItem('hk', ${realIndex})" style="cursor:pointer; opacity:0.6; font-size:10px; color:var(--neon-red)" title="Xóa">🗑️</span>
+                    </div>
                 </div>
             </div>
-            <div class="t-time" style="font-size:9px; opacity:0.6; margin-top:2px;">${new Date(h.time).toLocaleString()}</div>
-        </div>
-    `).join('') || "<div style='opacity:0.5;text-align:center;margin-top:20px;font-size:11px'>Chưa có dữ liệu ghi nhận</div>";
+        </div>`;
+    }).join('') || "<div style='opacity:0.5;text-align:center;margin-top:20px;font-size:11px'>Chưa có dữ liệu ghi nhận</div>";
 
     // Cập nhật CSS Variable cho vòng tròn
     $('leftDynamicContent').style.setProperty('--score-color', color);
     $('leftDynamicContent').style.setProperty('--score-pct', `${d.final}%`);
 
-    // --- CẬP NHẬT HTML: ĐIỂM Ở TRÊN, LỊCH SỬ Ở DƯỚI ---
     $('leftDynamicContent').innerHTML = `
         <div style="display:flex; flex-direction:column; align-items:center; width:100%;">
             <div class="score-circle-container">
@@ -5778,7 +5794,7 @@ function renderHKProfile() {
         </div>
     `;
 
-    // Phần bên phải (Nút bấm) - Giữ nguyên logic các nút nhỏ
+    // Phần bên phải (Giữ nguyên, chỉ bỏ nút Hoàn tác ở footer)
     $('actionArea').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
             <h3 style="margin:0; color:var(--neon-blue); font-size:13px; text-transform:uppercase; letter-spacing:1px;">⚡ Tác vụ nhanh</h3>
@@ -5811,23 +5827,35 @@ function renderHKProfile() {
             <textarea class="teacher-note-area" rows="2" style="background:transparent; border:none; width:100%; resize:none; color:var(--text); font-size:11px; outline:none;" placeholder="Ghi chú giáo viên..." onblur="saveTeacherNote(this.value)">${d.note}</textarea>
         </div>
     `;
+    
+    // Ẩn nút hoàn tác cũ đi vì đã có nút xóa từng dòng
+    const undoBtn = document.querySelector('button[onclick="undoLast()"]');
+    if(undoBtn) undoBtn.style.display = 'none';
 }
 // Thay thế hàm renderAcadProfile cũ
 function renderAcadProfile() {
     const w = calculateWallet(currentID);
-    // Đảm bảo lấy đúng điểm, nếu chưa có thì trả về object rỗng để tránh lỗi
     const g = getGrades(currentID) || {}; 
 
-    // CỘT TRÁI (Giữ nguyên logic cũ)
+    // --- CẬP NHẬT MỚI: THÊM NÚT SỬA/XÓA CHO KHO ĐIỂM ---
     let timeline = "";
     if(db.acad[currentID] && db.acad[currentID].history) {
-        timeline = db.acad[currentID].history.map((h, index) => ({...h, idx: index})).reverse().map(h => 
-            `<div class="timeline-item" style="border-color:${h.val<0?'var(--neon-red)':'var(--neon-gold)'}">
-                <div class="t-desc">${h.desc}</div>
-                <div class="t-val" style="color:${h.val>0?'#fbbf24':'#f43f5e'}">${h.val>0?'+':''}${h.val}</div>
-                <span onclick="deleteAcadHistory(${h.idx})" style="cursor:pointer; opacity:0.5; margin-left:5px">✕</span>
-            </div>`
-        ).join('');
+        let historyLen = db.acad[currentID].history.length;
+        
+        timeline = db.acad[currentID].history.slice().reverse().map((h, viewIndex) => {
+            const realIndex = (historyLen - 1) - viewIndex;
+            return `
+            <div class="timeline-item" style="border-color:${h.val<0?'var(--neon-red)':'var(--neon-gold)'}">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="t-desc" style="flex:1">${h.desc}</div>
+                    <div style="display:flex; gap:10px; align-items:center">
+                        <div class="t-val" style="color:${h.val>0?'#fbbf24':'#f43f5e'}">${h.val>0?'+':''}${h.val}</div>
+                        <span onclick="editHistoryItem('acad', ${realIndex})" style="cursor:pointer; opacity:0.5; font-size:10px" title="Sửa">✏️</span>
+                        <span onclick="deleteHistoryItem('acad', ${realIndex})" style="cursor:pointer; opacity:0.5; font-size:10px; color:var(--neon-red)" title="Xóa">✕</span>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
     }
     if(!timeline) timeline = "<div style='opacity:0.5;text-align:center;font-size:12px'>Trống</div>";
 
@@ -5846,7 +5874,8 @@ function renderAcadProfile() {
     let opts = '';
     for(const [k,v] of Object.entries(SUBJECTS)) opts += `<option value="${k}" ${k===currentSubject?'selected':''}>${v}</option>`;
 
-    // --- CỘT PHẢI (NỘI DUNG CHÍNH) ---
+    // ... (Phần hiển thị Tab Sổ điểm/Kho điểm giữ nguyên như code cũ) ...
+    // Copy lại phần actionArea từ code cũ của bạn hoặc dùng đoạn dưới đây:
     
     // Tab Sổ Điểm
     const gradeContent = `
@@ -5855,7 +5884,6 @@ function renderAcadProfile() {
         <select style="width:100%; margin-bottom:20px; background:rgba(0,0,0,0.3); color:var(--neon-blue); font-weight:bold; padding:10px; border-radius:8px" onchange="switchSubject(this.value)">${opts}</select>
         
         <div class="section-label" style="color:var(--neon-cyan); border-bottom:1px solid var(--neon-cyan); margin-bottom:10px">HỌC KỲ 1</div>
-        
         <div class="grade-section-row">
             ${renderGradeCard('tx1', 'TX 1', 'var(--neon-cyan)', g.tx1)}
             ${renderGradeCard('tx2', 'TX 2', 'var(--neon-cyan)', g.tx2)}
@@ -5869,7 +5897,6 @@ function renderAcadProfile() {
         </div>
 
         <div class="section-label" style="color:var(--neon-gold); margin-top:20px; border-bottom:1px solid var(--neon-gold); margin-bottom:10px">HỌC KỲ 2</div>
-        
         <div class="grade-section-row">
             ${renderGradeCard('tx6', 'TX 1', 'var(--neon-gold)', g.tx6)}
             ${renderGradeCard('tx7', 'TX 2', 'var(--neon-gold)', g.tx7)}
@@ -5883,7 +5910,7 @@ function renderAcadProfile() {
         </div>
     </div>`;
 
-    // Tab Kho Điểm (Giữ nguyên logic cũ nhưng bọc div cho gọn)
+    // Tab Kho Điểm
     const bankContent = `<div style="animation: fadeIn 0.3s;">
         <div class="section-label" style="color:var(--neon-gold)">⭐ Cộng điểm</div>
         <div class="holo-grid" style="margin-bottom:20px">${renderQuickButtonsHTML('acadGood')}</div>
@@ -5901,6 +5928,10 @@ function renderAcadProfile() {
             ${currentAcadTab === 'bank' ? bankContent : gradeContent}
         </div>
     </div>`;
+    
+    // Ẩn nút hoàn tác cũ
+    const undoBtn = document.querySelector('button[onclick="undoLast()"]');
+    if(undoBtn) undoBtn.style.display = 'none';
 }
 
 // Thay thế hàm renderGradeCard cũ
@@ -10949,6 +10980,78 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+// ==============================================================
+// 🛠️ HÀM XỬ LÝ LỊCH SỬ (XÓA / SỬA) CHÍNH XÁC
+// ==============================================================
+
+// 1. Hàm Xóa (Delete)
+function deleteHistoryItem(type, index) {
+    if(!currentID) return;
+    
+    // Xác định đang làm việc với database nào (HK hay Acad)
+    const targetDB = (type === 'hk') ? db.hk : db.acad;
+    
+    if (targetDB[currentID] && targetDB[currentID].history[index]) {
+        // Lấy thông tin để confirm
+        const item = targetDB[currentID].history[index];
+        if (confirm(`Bạn có chắc muốn xóa dòng này không?\n\n"${item.desc}" (${item.val})`)) {
+            
+            // Xóa phần tử tại vị trí index
+            targetDB[currentID].history.splice(index, 1);
+            
+            // Lưu dữ liệu
+            saveData();
+            
+            // Vẽ lại giao diện
+            if (type === 'hk') renderHKProfile();
+            else renderAcadProfile();
+            
+            // Cập nhật lại thẻ ngoài danh sách
+            renderList();
+            
+            showToast("Đã xóa thành công!", "success");
+        }
+    }
+}
+
+// 2. Hàm Sửa (Edit)
+function editHistoryItem(type, index) {
+    if(!currentID) return;
+    
+    const targetDB = (type === 'hk') ? db.hk : db.acad;
+    
+    if (targetDB[currentID] && targetDB[currentID].history[index]) {
+        const item = targetDB[currentID].history[index];
+        
+        // Hỏi nội dung mới
+        const newDesc = prompt("Sửa nội dung ghi chú:", item.desc);
+        if (newDesc === null) return; // Bấm hủy
+        
+        // Hỏi điểm số mới
+        const newValStr = prompt("Sửa điểm số (+/-):", item.val);
+        if (newValStr === null) return; // Bấm hủy
+        
+        const newVal = parseFloat(newValStr);
+        if (isNaN(newVal)) {
+            showToast("Điểm số không hợp lệ!", "error");
+            return;
+        }
+        
+        // Cập nhật dữ liệu
+        item.desc = newDesc.trim() || item.desc;
+        item.val = newVal;
+        
+        // Lưu và vẽ lại
+        saveData();
+        
+        if (type === 'hk') renderHKProfile();
+        else renderAcadProfile();
+        
+        renderList();
+        
+        showToast("Đã cập nhật thay đổi!", "success");
+    }
+}
 // --- KẾT THÚC CẤU HÌNH ---
 // Khi tạo HTML trong vòng lặp:
 // html += `<span class="badge-rank ${getRankClass(hs.hanhKiem)}">${hs.hanhKiem}</span>`;

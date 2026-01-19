@@ -3156,6 +3156,145 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
     height: 15px !important;
     font-size: 10px !important;
 }
+/* ============================================================== */
+/* 📱 MOBILE OPTIMIZATION (LANDSCAPE MODE ONLY) */
+/* ============================================================== */
+
+/* 1. Màn hình cảnh báo: Yêu cầu xoay ngang */
+#rotate-warning {
+    display: none; /* Mặc định ẩn */
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #050515;
+    z-index: 999999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: var(--neon-cyan);
+    text-align: center;
+    padding: 20px;
+}
+
+/* KHI MÀN HÌNH DỌC (PORTRAIT) TRÊN ĐIỆN THOẠI -> HIỆN CẢNH BÁO */
+@media only screen and (max-width: 900px) and (orientation: portrait) {
+    #rotate-warning { display: flex; }
+    .main-content, .sidebar, .sidebar-trigger { display: none !important; } /* Ẩn app đi */
+}
+
+/* 2. CẤU HÌNH GIAO DIỆN KHI Ở CHẾ ĐỘ NGANG (LANDSCAPE) */
+@media only screen and (max-width: 920px) and (orientation: landscape) {
+    
+    /* --- TỐI ƯU MENU TRÁI --- */
+    .sidebar {
+        width: 220px; /* Nhỏ hơn chút */
+        background: rgba(10, 10, 35, 0.98); /* Đậm đặc hơn để dễ đọc */
+    }
+    
+    /* Ẩn sidebar mặc định, chỉ hiện khi được kích hoạt */
+    body:not(.pinned-mode) .sidebar {
+        left: -240px; 
+    }
+    
+    /* Vùng cảm ứng mở rộng ra để dễ bấm bằng ngón tay cái */
+    .sidebar-trigger {
+        width: 25px !important;
+        background: rgba(255,255,255,0.05) !important;
+    }
+    .sidebar-trigger::after {
+        width: 40px !important;
+        height: 50px !important;
+        font-size: 24px; /* Icon to hơn cho dễ bấm */
+    }
+
+    /* --- TỐI ƯU NỘI DUNG CHÍNH --- */
+    .main-content {
+        width: 100vw;
+        padding-bottom: 0; /* Bỏ padding thừa */
+    }
+
+    /* Header gọn lại */
+    .header {
+        padding: 8px 15px; /* Giảm khoảng cách */
+        gap: 5px;
+    }
+    #pageTitle {
+        font-size: 14px !important; /* Chữ tiêu đề nhỏ lại */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 150px;
+    }
+    
+    /* Nút bấm to ra cho dễ chạm */
+    .btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    /* --- TỐI ƯU LƯỚI THẺ HỌC SINH (GRID) --- */
+    .grid-container {
+        /* Chia 2 cột trên điện thoại ngang là đẹp nhất */
+        grid-template-columns: 1fr 1fr !important; 
+        gap: 10px !important;
+        padding-bottom: 60px; /* Chừa chỗ để vuốt */
+    }
+    
+    .student-card {
+        min-height: 70px !important; /* Gọn hơn */
+        padding: 8px !important;
+    }
+    .avatar-container {
+        width: 40px !important;
+        height: 40px !important;
+    }
+    .student-card-name {
+        font-size: 13px !important;
+    }
+
+    /* --- TỐI ƯU CỬA SỔ POPUP (MODAL) --- */
+    /* Phóng to full màn hình điện thoại */
+    .profile-window, 
+    .confirm-box, 
+    #schoolManagerModal .confirm-box {
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        border-radius: 0 !important; /* Bỏ bo góc */
+        border: none !important;
+    }
+
+    .pw-body {
+        grid-template-columns: 1fr; /* Chuyển về 1 cột dọc */
+        overflow-y: auto; /* Cho phép cuộn toàn bộ */
+        display: block; /* Phá vỡ grid layout cũ */
+    }
+
+    .pw-left {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding: 10px !important;
+        flex-direction: row; /* Avatar và thông tin nằm ngang */
+        justify-content: space-around;
+    }
+    
+    /* Ẩn bớt lịch sử ở cột trái để đỡ rối, hoặc thu gọn */
+    .timeline-container {
+        max-height: 100px; /* Chỉ hiện 1 đoạn ngắn */
+    }
+
+    .pw-right {
+        padding: 15px !important;
+    }
+    
+    /* Bàn phím ảo hiện lên sẽ đẩy nội dung, cần fix chiều cao */
+    .game-input-area, .teacher-note-area {
+        height: 100px !important;
+    }
+}
 </style>
 </head>
 
@@ -4043,6 +4182,24 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
         </div>
     </div>
 </div>
+<div id="rotate-warning">
+    <div style="font-size: 60px; animation: rotatePhone 2s infinite;">📲</div>
+    <h2 style="margin: 20px 0 10px 0;">VUI LÒNG XOAY NGANG ĐIỆN THOẠI</h2>
+    <p style="opacity: 0.7; max-width: 300px; line-height: 1.5;">
+        Ứng dụng Trạm Vũ Trụ Yersin được thiết kế tối ưu cho màn hình rộng. 
+        Hãy xoay ngang thiết bị để có trải nghiệm tốt nhất!
+    </p>
+</div>
+
+<style>
+@keyframes rotatePhone {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(90deg); }
+    50% { transform: rotate(90deg); }
+    75% { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+}
+</style>
 </body>
 <script>
 // --- BẮT ĐẦU CẤU HÌNH ĐỒNG BỘ MÂY (FIREBASE) ---

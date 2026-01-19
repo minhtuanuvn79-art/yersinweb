@@ -4005,6 +4005,15 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
         </div>
     </div>
 </div>
+<div id="appLoading" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#050515; z-index:999999; display:flex; flex-direction:column; justify-content:center; align-items:center; transition: opacity 0.5s;">
+    <div style="font-size:40px; animation: spin 1s infinite linear;">🪐</div>
+    <div style="color:var(--neon-cyan); margin-top:10px; font-weight:bold; font-family:'Quicksand'">Đang kết nối vũ trụ...</div>
+    <div id="loadingStatus" style="color:rgba(255,255,255,0.5); font-size:12px; margin-top:5px">Khởi tạo...</div>
+</div>
+
+<style>
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
 </body>
 <script>
 // --- BẮT ĐẦU CẤU HÌNH ĐỒNG BỘ MÂY (FIREBASE) ---
@@ -4025,92 +4034,90 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 var dbRef = firebase.database().ref('yersin_data');
+// --- HÀM ĐỒNG BỘ MÂY THÔNG MINH (SMART SYNC) ---
 function listenToCloud() {
-    console.log("📡 Đang kết nối đến Trạm Vũ Trụ...");
+    console.log("📡 Bắt đầu thiết lập kết nối đa luồng...");
+    const statusEl = document.getElementById('loadingStatus');
+    const loadingScreen = document.getElementById('appLoading');
+
+    // Hàm tắt màn hình chờ khi dữ liệu quan trọng nhất đã về
+    const hideLoading = () => {
+        if(loadingScreen && loadingScreen.style.display !== 'none') {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.style.display = 'none', 500);
+        }
+    };
+
+    // 1. LUỒNG 1: DANH SÁCH HỌC SINH (Nhẹ nhất - Tải đầu tiên)
+    firebase.database().ref('yersin_data/students').on('value', snap => {
+        if(statusEl) statusEl.innerText = "Đang tải danh sách lớp...";
+        
+        students = snap.val() || [];
+        localStorage.setItem(LS.students, JSON.stringify(students));
+        
+        // Vẽ ngay cái khung (tên + lớp) để người dùng không phải chờ
+        // Lúc này điểm số chưa có, avatar chưa có (sẽ hiện mặc định)
+        if(typeof syncClassesFromData === 'function') syncClassesFromData();
+        renderList(); 
+        
+        // Có danh sách là tắt loading ngay cho cảm giác nhanh
+        hideLoading();
+        console.log("✅ Đã tải xong danh sách HS");
+    });
+
+    // 2. LUỒNG 2: DỮ LIỆU ĐIỂM & HẠNH KIỂM (Quan trọng nhì)
+    firebase.database().ref('yersin_data/hk').on('value', snap => {
+        db.hk = snap.val() || {};
+        localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
+        // Update giao diện lần 2: Điền điểm vào thẻ
+        if(currentMode === 'hk') renderList();
+    });
+
+    firebase.database().ref('yersin_data/acad').on('value', snap => {
+        db.acad = snap.val() || {};
+        localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
+        if(currentMode === 'acad') renderList();
+    });
     
-    var safeDbRef = (typeof dbRef !== 'undefined') ? dbRef : (window.dbRef || null);
-    if (!safeDbRef) return;
+    // 3. LUỒNG 3: CÁC DỮ LIỆU KHÁC (Tải ngầm)
+    // Grades (Sổ điểm chi tiết)
+    firebase.database().ref('yersin_data/grades').on('value', snap => {
+        grades = snap.val() || {};
+        localStorage.setItem(LS.grades, JSON.stringify(grades));
+    });
 
-    safeDbRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            console.log("📥 Đã nhận dữ liệu mới!");
-
-            // 1. Cập nhật dữ liệu cơ bản
-            if (data.students) students = data.students;
-            if (data.trash) trash = data.trash || [];
-            if (data.hk) db.hk = data.hk;
-            if (data.acad) db.acad = data.acad;
-            if (data.grades) grades = data.grades;
-            if (data.avatars) avatars = data.avatars;
-            if (data.quick_buttons) quickButtons = data.quick_buttons;
-
-            // 2. --- XỬ LÝ ĐỒNG BỘ TKB (FIX LỖI) ---
-            let hasTkbUpdate = false;
-
-            // a. Cập nhật kho lịch sử TKB
-            if (data.tkb_history) {
-                tkbHistory = data.tkb_history;
-                localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
-                hasTkbUpdate = true;
-            }
-
-            // b. Cập nhật ngày tháng
-            if (data.weeks_info) {
-                weekData = data.weeks_info;
-                localStorage.setItem("hk_v33_weeks", JSON.stringify(weekData));
-            }
-
-            // c. Đồng bộ Tuần đang chọn
-            if (data.current_week_idx) {
-                currentWeek = parseInt(data.current_week_idx);
-                hasTkbUpdate = true;
-            }
-
-            // d. [QUAN TRỌNG NHẤT] Ép biến tkbData trỏ vào đúng tuần trong lịch sử
-            if (hasTkbUpdate) {
-                if (!tkbHistory[currentWeek]) {
-                    // Nếu tuần này chưa có trong lịch sử (mới tạo), khởi tạo rỗng
-                    tkbHistory[currentWeek] = { student: {}, teacher: {}, grad: {} };
-                }
-                // Gán tham chiếu: Dữ liệu hiện tại = Dữ liệu tuần X trong lịch sử
+    // TKB (Thời khóa biểu)
+    firebase.database().ref('yersin_data/tkb_history').on('value', snap => {
+        tkbHistory = snap.val() || {};
+        localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
+    });
+    
+    // Cấu hình tuần
+    firebase.database().ref('yersin_data/current_week_idx').on('value', snap => {
+        if(snap.val()) {
+            currentWeek = parseInt(snap.val());
+            renderWeekInfo();
+            // Nếu TKB đã tải xong thì cập nhật luôn
+            if(tkbHistory && tkbHistory[currentWeek]) {
                 tkbData = tkbHistory[currentWeek];
-                
-                // Lưu lại ngay
-                localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
-            }
-
-            // 3. Lưu các phần còn lại
-            localStorage.setItem(LS.students, JSON.stringify(students));
-            localStorage.setItem(LS.trash, JSON.stringify(trash));
-            localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
-            localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
-            localStorage.setItem(LS.grades, JSON.stringify(grades));
-            localStorage.setItem(LS.avatars, JSON.stringify(avatars));
-            if (quickButtons) localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
-
-            // 4. Render lại giao diện
-            if (typeof renderList === 'function') renderList();
-            if (typeof updateTrashCount === 'function') updateTrashCount();
-            if (typeof syncClassesFromData === 'function') syncClassesFromData();
-            
-            // Render TKB
-            if (hasTkbUpdate) {
-                if (typeof renderTKBCards === 'function') renderTKBCards();
-                if (typeof renderWeekInfo === 'function') renderWeekInfo(); // Cập nhật chữ TUẦN X trên header
-                
-                // Nếu đang mở chi tiết TKB, vẽ lại bảng luôn
-                if (currentMode === 'tkb' && typeof currentTkbTarget !== 'undefined' && currentTkbTarget) {
-                    renderTKBTable(currentTkbTarget);
-                }
-            }
-
-            // Render Profile nếu đang mở
-            if (typeof currentID !== 'undefined' && currentID && document.getElementById('profileModal').style.display === 'flex') {
-                if (currentMode === 'hk' && typeof renderHKProfile === 'function') renderHKProfile(); 
-                else if (typeof renderAcadProfile === 'function') renderAcadProfile();
+                renderTKBCards();
             }
         }
+    });
+
+    // 4. LUỒNG 4: AVATAR (Nặng nhất - Tải sau cùng)
+    // Ảnh base64 rất nặng, để cuối cùng để không chặn các luồng kia
+    firebase.database().ref('yersin_data/avatars').on('value', snap => {
+        if(statusEl) statusEl.innerText = "Đang đồng bộ hình ảnh...";
+        avatars = snap.val() || {};
+        localStorage.setItem(LS.avatars, JSON.stringify(avatars));
+        
+        // Update giao diện lần 3: Thay avatar mặc định bằng ảnh thật
+        // Chỉ re-render nếu người dùng đang ở trang danh sách
+        if(document.getElementById('home').classList.contains('active')) {
+            renderList();
+        }
+        console.log("✅ Đã tải xong ảnh đại diện");
     });
 }
 

@@ -4035,92 +4035,82 @@ if (!firebase.apps.length) {
 }
 var dbRef = firebase.database().ref('yersin_data');
 // --- HÀM ĐỒNG BỘ MÂY THÔNG MINH (SMART SYNC) ---
+// --- HÀM ĐỒNG BỘ MÂY (FIX LỖI TKB & NGÀY THÁNG) ---
 function listenToCloud() {
-    console.log("📡 Bắt đầu thiết lập kết nối đa luồng...");
-    const statusEl = document.getElementById('loadingStatus');
-    const loadingScreen = document.getElementById('appLoading');
-
-    // Hàm tắt màn hình chờ khi dữ liệu quan trọng nhất đã về
-    const hideLoading = () => {
-        if(loadingScreen && loadingScreen.style.display !== 'none') {
-            loadingScreen.style.opacity = '0';
-            setTimeout(() => loadingScreen.style.display = 'none', 500);
-        }
-    };
-
-    // 1. LUỒNG 1: DANH SÁCH HỌC SINH (Nhẹ nhất - Tải đầu tiên)
+    console.log("📡 Đang kết nối vệ tinh...");
+    
+    // 1. Tải danh sách học sinh (Như cũ)
     firebase.database().ref('yersin_data/students').on('value', snap => {
-        if(statusEl) statusEl.innerText = "Đang tải danh sách lớp...";
-        
         students = snap.val() || [];
         localStorage.setItem(LS.students, JSON.stringify(students));
-        
-        // Vẽ ngay cái khung (tên + lớp) để người dùng không phải chờ
-        // Lúc này điểm số chưa có, avatar chưa có (sẽ hiện mặc định)
         if(typeof syncClassesFromData === 'function') syncClassesFromData();
-        renderList(); 
-        
-        // Có danh sách là tắt loading ngay cho cảm giác nhanh
-        hideLoading();
-        console.log("✅ Đã tải xong danh sách HS");
+        renderList();
     });
 
-    // 2. LUỒNG 2: DỮ LIỆU ĐIỂM & HẠNH KIỂM (Quan trọng nhì)
+    // 2. Tải Hạnh Kiểm & Sổ Điểm (Như cũ)
     firebase.database().ref('yersin_data/hk').on('value', snap => {
         db.hk = snap.val() || {};
         localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
-        // Update giao diện lần 2: Điền điểm vào thẻ
         if(currentMode === 'hk') renderList();
     });
-
     firebase.database().ref('yersin_data/acad').on('value', snap => {
         db.acad = snap.val() || {};
         localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
         if(currentMode === 'acad') renderList();
     });
-    
-    // 3. LUỒNG 3: CÁC DỮ LIỆU KHÁC (Tải ngầm)
-    // Grades (Sổ điểm chi tiết)
     firebase.database().ref('yersin_data/grades').on('value', snap => {
         grades = snap.val() || {};
         localStorage.setItem(LS.grades, JSON.stringify(grades));
     });
 
-    // TKB (Thời khóa biểu)
-    firebase.database().ref('yersin_data/tkb_history').on('value', snap => {
-        tkbHistory = snap.val() || {};
-        localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
-    });
+    // 3. --- SỬA LỖI TKB TẠI ĐÂY ---
     
-    // Cấu hình tuần
-    firebase.database().ref('yersin_data/current_week_idx').on('value', snap => {
-        if(snap.val()) {
-            currentWeek = parseInt(snap.val());
-            renderWeekInfo();
-            // Nếu TKB đã tải xong thì cập nhật luôn
-            if(tkbHistory && tkbHistory[currentWeek]) {
+    // A. Tải toàn bộ lịch sử TKB
+    firebase.database().ref('yersin_data/tkb_history').on('value', snap => {
+        const cloudHistory = snap.val();
+        
+        if(cloudHistory) {
+            tkbHistory = cloudHistory;
+            localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
+            
+            // NGAY LẬP TỨC: Cập nhật dữ liệu cho tuần đang xem trên máy này
+            // (Không cần chờ máy khác bấm gì cả)
+            if (tkbHistory[currentWeek]) {
                 tkbData = tkbHistory[currentWeek];
-                renderTKBCards();
+                localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
+                
+                // Vẽ lại giao diện nếu đang ở tab TKB
+                if (currentMode === 'tkb') {
+                    renderTKBCards();
+                    if(currentTkbTarget) renderTKBTable(currentTkbTarget);
+                }
             }
+            console.log("✅ Đã tải xong dữ liệu TKB toàn bộ tuần.");
         }
     });
 
-    // 4. LUỒNG 4: AVATAR (Nặng nhất - Tải sau cùng)
-    // Ảnh base64 rất nặng, để cuối cùng để không chặn các luồng kia
+    // B. Tải thông tin Ngày tháng (Từ ngày - Đến ngày)
+    firebase.database().ref('yersin_data/weeks_info').on('value', snap => {
+        const wInfo = snap.val();
+        if(wInfo) {
+            weekData = wInfo;
+            localStorage.setItem("hk_v33_weeks", JSON.stringify(weekData));
+            // Cập nhật lại hiển thị ngày tháng trên Header ngay
+            renderWeekInfo();
+        }
+    });
+
+    // C. Tải Avatar
     firebase.database().ref('yersin_data/avatars').on('value', snap => {
-        if(statusEl) statusEl.innerText = "Đang đồng bộ hình ảnh...";
         avatars = snap.val() || {};
         localStorage.setItem(LS.avatars, JSON.stringify(avatars));
-        
-        // Update giao diện lần 3: Thay avatar mặc định bằng ảnh thật
-        // Chỉ re-render nếu người dùng đang ở trang danh sách
-        if(document.getElementById('home').classList.contains('active')) {
-            renderList();
-        }
-        console.log("✅ Đã tải xong ảnh đại diện");
+        if(document.getElementById('home').classList.contains('active')) renderList();
     });
+    
+    // Ẩn màn hình loading (nếu có)
+    const loadingScreen = document.getElementById('appLoading');
+    if(loadingScreen) setTimeout(() => loadingScreen.style.display = 'none', 1000);
 }
-
 // 4. Kích hoạt lắng nghe ngay khi bật app
 window.addEventListener('load', listenToCloud);
 // ======================================================
@@ -7634,14 +7624,34 @@ renderWeekInfo();
 // Hàm chuyển tuần
 function changeWeek(delta) {
     let newWeek = currentWeek + delta;
-    if (newWeek < 1) return; // Không cho về tuần < 1
+    if (newWeek < 1) return;
 
+    // 1. Cập nhật biến tuần cục bộ
     currentWeek = newWeek;
     
-    // GỌI HÀM LOAD DỮ LIỆU TỪ LỊCH SỬ
-    loadDataForWeek(currentWeek);
+    // 2. Lấy dữ liệu từ kho lịch sử (đã được tải về từ mây)
+    if (tkbHistory && tkbHistory[currentWeek]) {
+        tkbData = tkbHistory[currentWeek];
+    } else {
+        // Nếu tuần này chưa có dữ liệu, tạo mới rỗng
+        tkbData = { teacher: {}, student: {}, grad: {} };
+        // Lưu ngược vào history để tạo mốc
+        tkbHistory[currentWeek] = tkbData;
+    }
     
-    renderWeekInfo();
+    // 3. Lưu trạng thái tuần này vào LocalStorage (chỉ máy này biết)
+    localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
+    
+    // 4. Vẽ lại giao diện
+    renderWeekInfo(); // Cập nhật số tuần và ngày tháng
+    renderTKBCards(); // Cập nhật danh sách thẻ
+    
+    // Nếu đang xem chi tiết, reload luôn bảng
+    if(document.getElementById('tkbDetailView').style.display === 'block' && currentTkbTarget) {
+        renderTKBTable(currentTkbTarget);
+    }
+    
+    showToast(`Đã chuyển sang Tuần ${currentWeek}`, "info");
 }
 
 // Hàm mới: Tải dữ liệu TKB của một tuần cụ thể
@@ -7719,12 +7729,17 @@ function toggleDateLock() {
     }
 }
 function renderWeekInfo() {
-    // Sửa ID trỏ tới phần tử trên Header
+    // Hiển thị số tuần
     const display = document.getElementById('headerWeekTitle');
-    const input = document.getElementById('headerWeekDate');
-    
     if(display) display.innerText = `TUẦN ${currentWeek}`;
-    if(input) input.value = weekData[currentWeek] || "";
+    
+    // Hiển thị ngày tháng (VD: 19/01 - 25/01)
+    const input = document.getElementById('headerWeekDate');
+    if(input) {
+        // Lấy dữ liệu từ biến weekData (đã được đồng bộ từ mây)
+        const dateRange = weekData[currentWeek] || ""; 
+        input.value = dateRange;
+    }
 }
 
 function saveWeekDate() {

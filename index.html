@@ -11015,41 +11015,55 @@ function deleteHistoryItem(type, index) {
 }
 
 // 2. Hàm Sửa (Edit)
+// ==============================================================
+// 🛠️ HÀM SỬA LỊCH SỬ (CHO PHÉP SỬA CẢ TÊN VÀ ĐIỂM)
+// ==============================================================
+
 function editHistoryItem(type, index) {
     if(!currentID) return;
     
+    // Xác định đang làm việc với database nào (HK hay Acad)
     const targetDB = (type === 'hk') ? db.hk : db.acad;
     
+    // Kiểm tra dữ liệu có tồn tại không
     if (targetDB[currentID] && targetDB[currentID].history[index]) {
         const item = targetDB[currentID].history[index];
         
-        // Hỏi nội dung mới
-        const newDesc = prompt("Sửa nội dung ghi chú:", item.desc);
-        if (newDesc === null) return; // Bấm hủy
+        // --- BƯỚC 1: SỬA NỘI DUNG ---
+        const newDesc = prompt("✏️ Sửa nội dung ghi chú:", item.desc);
         
-        // Hỏi điểm số mới
-        const newValStr = prompt("Sửa điểm số (+/-):", item.val);
-        if (newValStr === null) return; // Bấm hủy
+        // Nếu người dùng bấm "Cancel" (Hủy) ở bước này -> Dừng lại, không làm gì cả
+        if (newDesc === null) return; 
         
+        // --- BƯỚC 2: SỬA ĐIỂM SỐ ---
+        const newValStr = prompt("💯 Sửa điểm số (+/-):", item.val);
+        
+        // Nếu người dùng bấm "Cancel" ở bước này -> Dừng lại
+        if (newValStr === null) return;
+        
+        // Kiểm tra xem có phải là số không
         const newVal = parseFloat(newValStr);
         if (isNaN(newVal)) {
-            showToast("Điểm số không hợp lệ!", "error");
+            showToast("❌ Điểm số không hợp lệ! Vui lòng nhập số.", "error");
             return;
         }
         
-        // Cập nhật dữ liệu
-        item.desc = newDesc.trim() || item.desc;
+        // --- BƯỚC 3: CẬP NHẬT DỮ LIỆU ---
+        // Nếu nội dung để trống thì giữ nguyên cái cũ, còn điểm thì lấy điểm mới
+        item.desc = newDesc.trim() !== "" ? newDesc.trim() : item.desc;
         item.val = newVal;
         
-        // Lưu và vẽ lại
+        // --- BƯỚC 4: LƯU VÀ VẼ LẠI GIAO DIỆN ---
         saveData();
         
+        // Vẽ lại giao diện chi tiết (Profile)
         if (type === 'hk') renderHKProfile();
         else renderAcadProfile();
         
+        // Vẽ lại danh sách bên ngoài để cập nhật tổng điểm
         renderList();
         
-        showToast("Đã cập nhật thay đổi!", "success");
+        showToast("✅ Đã cập nhật nội dung và điểm số!", "success");
     }
 }
 // --- KẾT THÚC CẤU HÌNH ---

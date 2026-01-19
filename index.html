@@ -10919,13 +10919,16 @@ function discardAndClose() {
     showToast("Đã đóng (Không lưu thay đổi mới nhất)", "info");
 }
 // ============================================================
-// ⌨️ HỆ THỐNG PHÍM TẮT (ĐÃ BỎ CTRL+S)
+// ⌨️ HỆ THỐNG PHÍM TẮT ĐA NĂNG (HỖ TRỢ CẢ THÙNG RÁC)
 // ============================================================
 
 document.addEventListener('keydown', function(e) {
-    // 1. Kiểm tra xem người dùng có đang gõ văn bản không
+    // 1. Kiểm tra trạng thái nhập liệu
     const activeTag = document.activeElement.tagName.toLowerCase();
     const isTyping = (activeTag === 'input' || activeTag === 'textarea' || document.activeElement.isContentEditable);
+    
+    // 2. Kiểm tra xem có đang ở trang Thùng Rác không
+    const isTrashActive = document.getElementById('trash') && document.getElementById('trash').classList.contains('active');
 
     // --- PHÍM ESC (THOÁT / ĐÓNG / HỦY CHỌN) ---
     if (e.key === 'Escape') {
@@ -10935,24 +10938,20 @@ document.addEventListener('keydown', function(e) {
         const modals = document.querySelectorAll('.modal-overlay');
         let isModalClosed = false;
         
-        // Đóng menu chuột phải trước
+        // Đóng menu chuột phải
         if (document.getElementById('contextMenu') && document.getElementById('contextMenu').style.display === 'block') {
             document.getElementById('contextMenu').style.display = 'none';
             isModalClosed = true;
         } else {
             // Kiểm tra các modal lớn
-            const modalIds = ['saveConfirmModal', 'teacherEditModal', 'editBtnModal', 'schEditModal', 'schoolManagerModal', 'classManagerModal', 'guideModal', 'addModal', 'printPreviewModal', 'confirmModal', 'wheelModal', 'commentManagerModal', 'profileModal'];
+            const modalIds = ['editHistoryModal', 'saveConfirmModal', 'teacherEditModal', 'editBtnModal', 'schEditModal', 'schoolManagerModal', 'classManagerModal', 'guideModal', 'addModal', 'printPreviewModal', 'confirmModal', 'wheelModal', 'commentManagerModal', 'profileModal'];
             
             for (let id of modalIds) {
                 const m = document.getElementById(id);
                 if (m && m.style.display === 'flex') {
-                    if (id === 'profileModal') {
-                        requestCloseProfile(); 
-                    } else if (id === 'saveConfirmModal') {
-                        discardAndClose(); 
-                    } else {
-                        m.style.display = 'none';
-                    }
+                    if (id === 'profileModal') requestCloseProfile(); 
+                    else if (id === 'saveConfirmModal') discardAndClose(); 
+                    else m.style.display = 'none';
                     isModalClosed = true;
                     break; 
                 }
@@ -10961,8 +10960,18 @@ document.addEventListener('keydown', function(e) {
 
         // Ưu tiên 2: Hủy chọn nếu không có modal nào mở
         if (!isModalClosed) {
-            if (typeof clearSelection === 'function') clearSelection();
-            if (typeof backToTKBList === 'function' && document.getElementById('tkbDetailView').style.display === 'block') backToTKBList();
+            // Nếu đang ở Thùng Rác -> Hủy chọn thùng rác
+            if (isTrashActive) {
+                if (typeof trashSelection !== 'undefined') {
+                    trashSelection.clear();
+                    if(typeof renderTrashGrid === 'function') renderTrashGrid();
+                }
+            } 
+            // Nếu đang ở trang chính -> Hủy chọn danh sách chính
+            else {
+                if (typeof clearSelection === 'function') clearSelection();
+                if (typeof backToTKBList === 'function' && document.getElementById('tkbDetailView').style.display === 'block') backToTKBList();
+            }
             
             // Đóng menu phải
             const rsPanel = document.getElementById('rsPanel');
@@ -10970,35 +10979,40 @@ document.addEventListener('keydown', function(e) {
         }
     }
 
-    // --- PHÍM ENTER (XÁC NHẬN) ---
+    // --- PHÍM ENTER (XÁC NHẬN / KHÔI PHỤC) ---
     if (e.key === 'Enter') {
-        if (document.getElementById('confirmModal').style.display === 'flex') {
-            e.preventDefault();
-            commitScore(); 
-        } else if (document.getElementById('addModal').style.display === 'flex') {
-            e.preventDefault();
-            addNewStudentManual(); 
-        } else if (document.getElementById('addClassModal').style.display === 'flex') {
-            e.preventDefault();
-            confirmAddClass(); 
-        } else if (document.getElementById('saveConfirmModal').style.display === 'flex') {
-            e.preventDefault();
-            saveAndCloseProfile(); 
-        } else if (document.getElementById('wheelModal').style.display === 'flex') {
-            e.preventDefault();
-            spin();
-        } else if (document.getElementById('editHistoryModal').style.display === 'flex') {
-            e.preventDefault();
-            confirmEditHistory(); // Gọi hàm lưu
-}
+        // Ưu tiên xử lý các Modal (Cửa sổ bật lên)
+        if (document.getElementById('confirmModal').style.display === 'flex') { e.preventDefault(); commitScore(); }
+        else if (document.getElementById('addModal').style.display === 'flex') { e.preventDefault(); addNewStudentManual(); }
+        else if (document.getElementById('addClassModal').style.display === 'flex') { e.preventDefault(); confirmAddClass(); }
+        else if (document.getElementById('saveConfirmModal').style.display === 'flex') { e.preventDefault(); saveAndCloseProfile(); }
+        else if (document.getElementById('wheelModal').style.display === 'flex') { e.preventDefault(); spin(); }
+        else if (document.getElementById('editHistoryModal').style.display === 'flex') { e.preventDefault(); confirmEditHistory(); } // Hàm sửa lịch sử mới
+        
+        // Nếu không có modal nào mở:
+        else if (!isTyping) {
+            // Nếu đang ở Thùng Rác & Có chọn -> KHÔI PHỤC
+            if (isTrashActive && typeof trashSelection !== 'undefined' && trashSelection.size > 0) {
+                e.preventDefault();
+                restoreSelectedTrash();
+            }
+        }
     }
 
     // --- PHÍM DELETE (XÓA) ---
     if (e.key === 'Delete') {
-        // Chỉ xóa khi KHÔNG gõ chữ
         if (!isTyping) {
-            if (selectedStudents && selectedStudents.size > 0) {
-                bulkDelete();
+            // Nếu đang ở Thùng Rác -> XÓA VĨNH VIỄN
+            if (isTrashActive) {
+                if (typeof trashSelection !== 'undefined' && trashSelection.size > 0) {
+                    deleteSelectedTrashForever();
+                }
+            } 
+            // Nếu đang ở trang chính -> CHUYỂN VÀO THÙNG RÁC
+            else {
+                if (selectedStudents && selectedStudents.size > 0) {
+                    bulkDelete();
+                }
             }
         }
     }
@@ -11007,8 +11021,16 @@ document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
         if (!isTyping) {
             e.preventDefault(); 
-            if (typeof toggleSelectAll === 'function') toggleSelectAll();
-            showToast("Đã chọn tất cả học sinh đang hiển thị", "info");
+            // Nếu đang ở Thùng Rác -> Chọn tất cả thùng rác
+            if (isTrashActive) {
+                if (typeof toggleSelectAllTrash === 'function') toggleSelectAllTrash();
+                showToast("Đã chọn tất cả trong Thùng Rác", "info");
+            } 
+            // Nếu đang ở trang chính -> Chọn tất cả danh sách chính
+            else {
+                if (typeof toggleSelectAll === 'function') toggleSelectAll();
+                showToast("Đã chọn tất cả học sinh đang hiển thị", "info");
+            }
         }
     }
 });

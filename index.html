@@ -4017,7 +4017,8 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
 </body>
 <script>
 // --- BẮT ĐẦU CẤU HÌNH ĐỒNG BỘ MÂY (FIREBASE) ---
-
+// ... các biến khác ...
+let isCloudReady = false; // 🔒 Mặc định là KHÓA, chưa cho phép lưu lên mây
 // 1. Dán cấu hình của bạn vào đây
 const firebaseConfig = {
   apiKey: "AIzaSyCJvnMlhF36928AEAqKW1MQRQn-rI_CEe0",
@@ -4034,82 +4035,77 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 var dbRef = firebase.database().ref('yersin_data');
-// --- HÀM ĐỒNG BỘ MÂY THÔNG MINH (SMART SYNC) ---
-// --- HÀM ĐỒNG BỘ MÂY (FIX LỖI TKB & NGÀY THÁNG) ---
 function listenToCloud() {
     console.log("📡 Đang kết nối vệ tinh...");
     
-    // 1. Tải danh sách học sinh (Như cũ)
-    firebase.database().ref('yersin_data/students').on('value', snap => {
-        students = snap.val() || [];
-        localStorage.setItem(LS.students, JSON.stringify(students));
-        if(typeof syncClassesFromData === 'function') syncClassesFromData();
-        renderList();
-    });
+    var safeDbRef = (typeof dbRef !== 'undefined') ? dbRef : (window.dbRef || null);
+    if (!safeDbRef) return;
 
-    // 2. Tải Hạnh Kiểm & Sổ Điểm (Như cũ)
-    firebase.database().ref('yersin_data/hk').on('value', snap => {
-        db.hk = snap.val() || {};
-        localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
-        if(currentMode === 'hk') renderList();
-    });
-    firebase.database().ref('yersin_data/acad').on('value', snap => {
-        db.acad = snap.val() || {};
-        localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
-        if(currentMode === 'acad') renderList();
-    });
-    firebase.database().ref('yersin_data/grades').on('value', snap => {
-        grades = snap.val() || {};
-        localStorage.setItem(LS.grades, JSON.stringify(grades));
-    });
-
-    // 3. --- SỬA LỖI TKB TẠI ĐÂY ---
-    
-    // A. Tải toàn bộ lịch sử TKB
-    firebase.database().ref('yersin_data/tkb_history').on('value', snap => {
-        const cloudHistory = snap.val();
+    // Lắng nghe TOÀN BỘ dữ liệu một lần (để đảm bảo đồng bộ)
+    safeDbRef.on('value', (snapshot) => {
+        const data = snapshot.val();
         
-        if(cloudHistory) {
-            tkbHistory = cloudHistory;
-            localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
-            
-            // NGAY LẬP TỨC: Cập nhật dữ liệu cho tuần đang xem trên máy này
-            // (Không cần chờ máy khác bấm gì cả)
+        // Nếu có dữ liệu trên mây
+        if (data) {
+            console.log("📥 Đã nhận dữ liệu từ mây!");
+
+            // 1. Cập nhật dữ liệu vào biến
+            if (data.students) students = data.students;
+            if (data.trash) trash = data.trash || [];
+            if (data.hk) db.hk = data.hk;
+            if (data.acad) db.acad = data.acad;
+            if (data.grades) grades = data.grades;
+            if (data.avatars) avatars = data.avatars;
+            if (data.quick_buttons) quickButtons = data.quick_buttons;
+
+            // 2. Cập nhật TKB & Lịch sử & Ngày tháng
+            if (data.tkb_history) {
+                tkbHistory = data.tkb_history;
+                localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
+            }
+            if (data.weeks_info) {
+                weekData = data.weeks_info;
+                localStorage.setItem("hk_v33_weeks", JSON.stringify(weekData));
+            }
+
+            // 3. Xử lý hiển thị TKB (Không nhảy tuần lung tung)
+            // Chỉ cập nhật dữ liệu hiển thị, KHÔNG cập nhật currentWeek từ mây
+            // để tránh việc máy này bấm máy kia nhảy.
             if (tkbHistory[currentWeek]) {
                 tkbData = tkbHistory[currentWeek];
                 localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
-                
-                // Vẽ lại giao diện nếu đang ở tab TKB
-                if (currentMode === 'tkb') {
-                    renderTKBCards();
-                    if(currentTkbTarget) renderTKBTable(currentTkbTarget);
-                }
             }
-            console.log("✅ Đã tải xong dữ liệu TKB toàn bộ tuần.");
-        }
-    });
 
-    // B. Tải thông tin Ngày tháng (Từ ngày - Đến ngày)
-    firebase.database().ref('yersin_data/weeks_info').on('value', snap => {
-        const wInfo = snap.val();
-        if(wInfo) {
-            weekData = wInfo;
-            localStorage.setItem("hk_v33_weeks", JSON.stringify(weekData));
-            // Cập nhật lại hiển thị ngày tháng trên Header ngay
-            renderWeekInfo();
-        }
-    });
+            // 4. Lưu xuống LocalStorage để lần sau vào nhanh hơn
+            localStorage.setItem(LS.students, JSON.stringify(students));
+            localStorage.setItem(LS.trash, JSON.stringify(trash));
+            localStorage.setItem(LS.hk_data, JSON.stringify(db.hk));
+            localStorage.setItem(LS.acad_data, JSON.stringify(db.acad));
+            localStorage.setItem(LS.grades, JSON.stringify(grades));
+            localStorage.setItem(LS.avatars, JSON.stringify(avatars));
 
-    // C. Tải Avatar
-    firebase.database().ref('yersin_data/avatars').on('value', snap => {
-        avatars = snap.val() || {};
-        localStorage.setItem(LS.avatars, JSON.stringify(avatars));
-        if(document.getElementById('home').classList.contains('active')) renderList();
+            // 5. Render lại giao diện
+            if (typeof renderList === 'function') renderList();
+            if (typeof updateTrashCount === 'function') updateTrashCount();
+            if (typeof syncClassesFromData === 'function') syncClassesFromData();
+            if (typeof renderWeekInfo === 'function') renderWeekInfo(); // Cập nhật ngày tháng
+            if (typeof renderTKBCards === 'function') renderTKBCards(); // Cập nhật TKB
+            
+            // Nếu đang mở TKB chi tiết
+            if (currentTkbTarget && typeof renderTKBTable === 'function') {
+                renderTKBTable(currentTkbTarget);
+            }
+        }
+        
+        // 🔓 QUAN TRỌNG NHẤT: MỞ KHÓA CHO PHÉP LƯU
+        // (Chỉ khi đã tải xong dữ liệu về mới cho phép đẩy lên)
+        isCloudReady = true;
+        console.log("🔓 Đã đồng bộ xong. Hệ thống sẵn sàng ghi nhận dữ liệu mới.");
+        
+        // Tắt màn hình loading (nếu có)
+        const loading = document.getElementById('appLoading');
+        if(loading) loading.style.display = 'none';
     });
-    
-    // Ẩn màn hình loading (nếu có)
-    const loadingScreen = document.getElementById('appLoading');
-    if(loadingScreen) setTimeout(() => loadingScreen.style.display = 'none', 1000);
 }
 // 4. Kích hoạt lắng nghe ngay khi bật app
 window.addEventListener('load', listenToCloud);
@@ -4431,7 +4427,7 @@ function compressImage(file, maxWidth, quality, callback) { const reader = new F
 // ============================================================
 function saveData() {
     try {
-        // --- 1. LƯU LOCALSTORAGE (MÁY CỤC BỘ) ---
+        // --- 1. VẪN LƯU VÀO LOCALSTORAGE BÌNH THƯỜNG (Để dùng offline) ---
         localStorage.setItem(LS.students, JSON.stringify(students));
         localStorage.setItem(LS.trash, JSON.stringify(trash));
         localStorage.setItem(LS.avatars, JSON.stringify(avatars));
@@ -4443,25 +4439,22 @@ function saveData() {
         
         localStorage.setItem(LS.grades, JSON.stringify(grades));
 
-        // --- CẬP NHẬT TKB QUAN TRỌNG ---
-        // Lưu lịch sử toàn bộ các tuần
-        if (typeof tkbHistory !== 'undefined') {
-            localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
-        }
-        // Lưu thông tin ngày tháng
-        if (typeof weekData !== 'undefined') {
-            localStorage.setItem("hk_v33_weeks", JSON.stringify(weekData));
-        }
-        // Lưu dữ liệu tuần hiện tại
+        // TKB
         localStorage.setItem(LS.tkb, JSON.stringify(tkbData));
+        if (typeof tkbHistory !== 'undefined') localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
+        if (typeof weekData !== 'undefined') localStorage.setItem("hk_v33_weeks", JSON.stringify(weekData));
         
-        if (typeof quickButtons !== 'undefined') {
-            localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
-        }
-
+        if (typeof quickButtons !== 'undefined') localStorage.setItem(LS.quick_buttons, JSON.stringify(quickButtons));
         if (typeof updateTrashCount === 'function') updateTrashCount();
 
-        // --- 2. ĐỒNG BỘ LÊN FIREBASE (MÂY) ---
+        // --- 2. ĐỒNG BỘ LÊN FIREBASE (CÓ CHỐT AN TOÀN) ---
+        
+        // 🛑 NẾU CHƯA TẢI XONG TỪ MÂY VỀ -> KHÔNG ĐƯỢC LƯU ĐÈ
+        if (!isCloudReady) {
+            console.warn("🚫 CHẶN LƯU: Dữ liệu chưa tải xong từ máy chủ. Đang chờ đồng bộ...");
+            return; 
+        }
+
         var safeDbRef = (typeof dbRef !== 'undefined') ? dbRef : (window.dbRef || null);
         
         if (safeDbRef) {
@@ -4473,10 +4466,11 @@ function saveData() {
                 acad: (typeof db !== 'undefined' ? db.acad : {}),
                 grades: grades,
                 
-                // --- ĐỒNG BỘ TKB TRỌN GÓI ---
-                tkb_history: (typeof tkbHistory !== 'undefined' ? tkbHistory : {}), // Gửi kho TKB tất cả các tuần
-                weeks_info: (typeof weekData !== 'undefined' ? weekData : {}),       // Gửi tên ngày tháng
-                current_week_idx: (typeof currentWeek !== 'undefined' ? currentWeek : 1), // Gửi số tuần đang chọn
+                // Gửi TKB
+                tkb_history: (typeof tkbHistory !== 'undefined' ? tkbHistory : {}),
+                weeks_info: (typeof weekData !== 'undefined' ? weekData : {}),
+                
+                // ❌ BỎ DÒNG current_week_idx để máy khác không bị nhảy tuần
                 
                 quick_buttons: (typeof quickButtons !== 'undefined' ? quickButtons : null),
                 last_updated: new Date().toISOString()

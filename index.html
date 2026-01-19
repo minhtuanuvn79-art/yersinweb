@@ -2899,89 +2899,262 @@ body.theme-yersin-light .teacher-avatar { border-color: #cbd5e1 !important; }
     margin: 0;
 }
 /* ============================================================== */
-/* GIAO DIỆN THANH NEO (SIDEBAR HANDLE) - DÁN VÀO CUỐI CSS */
+/* FIX LỖI GIAO DIỆN THANH NEO (DÁN ĐÈ VÀO CUỐI CSS) */
 /* ============================================================== */
 
-/* 1. Ghi đè giao diện vùng cảm ứng */
+/* 1. Cấu hình vùng cảm ứng (Giữ nguyên) */
 .sidebar-trigger {
-    /* Đảm bảo đè lên thuộc tính cũ */
-    width: 12px !important; /* Thu nhỏ lại cho tinh tế */
-    background: rgba(10, 10, 42, 0.6) !important; /* Thêm màu nền mờ để nhận diện */
-    border-right: 1px solid rgba(0, 234, 255, 0.3) !important; /* Viền neon nhẹ */
-    backdrop-filter: blur(4px); /* Làm mờ nền phía sau */
+    position: fixed;
+    top: 0; left: 0;
+    width: 15px !important; /* Vùng cảm ứng nhỏ lại */
+    height: 100vh;
+    z-index: 99999; /* Đảm bảo cao nhất */
+    background: transparent !important;
+    border: none !important;
+    pointer-events: none; /* Cho phép click xuyên qua vùng trống */
+}
+
+/* 2. Tạo Nút Tay Nắm (Handle) - Đã fix cứng kích thước */
+.sidebar-trigger::after {
+    content: '❱'; 
+    font-family: monospace;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--neon-cyan);
     
-    /* Căn giữa icon tay nắm */
+    /* Vị trí tuyệt đối: Giữa màn hình bên trái */
+    position: absolute;
+    top: 50%;
+    left: 0; 
+    transform: translateY(-50%);
+    
+    /* --- FIX KÍCH THƯỚC CỐ ĐỊNH (Quan trọng) --- */
+    width: 30px !important;
+    height: 40px !important;
+    padding: 0 !important; /* Bỏ padding thừa gây vỡ khung */
+    
+    /* Căn giữa chữ */
     display: flex !important;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* 2. Tạo "Tay nắm" (Handle) lồi ra ở giữa - Đây là phần mới hoàn toàn */
-.sidebar-trigger::after {
-    content: '❱'; /* Mũi tên chỉ hướng */
-    font-family: monospace;
-    font-size: 16px;
-    font-weight: bold;
-    color: var(--neon-cyan);
     
-    /* Tạo hình bán nguyệt/viên thuốc */
-    background: rgba(10, 10, 35, 0.95);
+    /* Giao diện hình bán nguyệt */
+    background: rgba(10, 10, 42, 0.95);
     border: 1px solid var(--neon-cyan);
-    border-left: none;
+    border-left: none; /* Bỏ viền trái để nối liền */
+    border-radius: 0 100px 100px 0 !important; /* Bo tròn hoàn hảo phía phải */
     
-    /* Vị trí và kích thước */
-    position: absolute;
-    left: 100%; /* Đẩy ra khỏi thanh dọc */
-    padding: 12px 4px 12px 6px;
-    border-radius: 0 10px 10px 0;
+    box-shadow: 2px 0 10px rgba(0, 234, 255, 0.4);
+    cursor: pointer;
+    pointer-events: auto; /* Để click được vào nút */
     
-    /* Hiệu ứng nổi */
-    box-shadow: 4px 0 15px rgba(0, 234, 255, 0.3);
-    animation: triggerPulse 3s infinite; /* Nhấp nháy nhẹ */
+    /* Hiệu ứng mượt */
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    animation: triggerPulse 2s infinite;
 }
 
-/* 3. Hiệu ứng khi di chuột vào */
-.sidebar-trigger:hover {
-    width: 20px !important;
-    background: rgba(0, 234, 255, 0.15) !important;
-    border-color: var(--neon-cyan) !important;
+/* 3. Khi Sidebar mở ra -> Nút trôi sang phải và đổi màu */
+
+/* Trường hợp: Hover vào vùng cảm ứng HOẶC Hover vào Menu HOẶC Đang ghim */
+.sidebar-trigger:hover::after,
+body:has(.sidebar:hover) .sidebar-trigger::after,
+body.pinned-mode .sidebar-trigger::after {
+    /* Di chuyển ra mép menu (260px) */
+    left: 260px !important; 
+    
+    /* Đổi giao diện thành nút Đóng */
+    content: '✕';
+    width: 40px !important; /* Vuông vắn hơn chút khi mở */
+    background: var(--neon-red) !important;
+    color: white !important;
+    border-color: var(--neon-red) !important;
+    box-shadow: 2px 0 15px rgba(244, 63, 94, 0.5) !important;
+    animation: none; /* Tắt nhấp nháy */
 }
 
-.sidebar-trigger:hover::after {
-    content: '☰'; /* Đổi thành icon Menu */
-    background: var(--neon-cyan);
-    color: #000;
-    box-shadow: 4px 0 25px rgba(0, 234, 255, 0.8);
-    animation: none;
-    padding: 12px 8px;
-}
-
-/* Animation nhấp nháy thu hút sự chú ý */
+/* Hiệu ứng nhấp nháy nhẹ khi đang đóng */
 @keyframes triggerPulse {
-    0% { transform: scale(1); box-shadow: 2px 0 5px rgba(0, 234, 255, 0.2); opacity: 0.8; }
-    50% { transform: scale(1.1); box-shadow: 4px 0 15px rgba(0, 234, 255, 0.6); opacity: 1; }
-    100% { transform: scale(1); box-shadow: 2px 0 5px rgba(0, 234, 255, 0.2); opacity: 0.8; }
+    0% { transform: translateY(-50%) scale(1); opacity: 0.8; }
+    50% { transform: translateY(-50%) scale(1.1); opacity: 1; box-shadow: 4px 0 15px rgba(0, 234, 255, 0.6); }
+    100% { transform: translateY(-50%) scale(1); opacity: 0.8; }
+}
+
+/* --- FIX CHO GIAO DIỆN SÁNG (YERSIN LIGHT) --- */
+body.theme-yersin-light .sidebar-trigger::after {
+    background: #ffffff;
+    color: #e65100; /* Cam */
+    border-color: #e65100;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+body.theme-yersin-light:has(.sidebar:hover) .sidebar-trigger::after,
+body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
+    background: #d32f2f !important; /* Đỏ */
+    color: white !important;
+    border-color: #d32f2f !important;
+}
+/* ============================================================== */
+/* GIAO DIỆN THANH TRƯỢT PHẲNG (CLEAN - NO NEON) */
+/* ============================================================== */
+
+/* 1. Thanh dọc: Bỏ viền neon, dùng viền mờ nhẹ */
+.sidebar-trigger {
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important; /* Viền trắng mờ */
+    background: rgba(0, 0, 0, 0.2) !important; /* Nền tối nhẹ */
+}
+
+/* 2. Nút tay nắm: Chuyển sang dạng phẳng */
+.sidebar-trigger::after {
+    /* TẮT HOÀN TOÀN BÓNG NEON */
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.3) !important; /* Bóng đen nhẹ tự nhiên */
+    
+    /* Viền mảnh đơn giản */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    
+    /* Tắt nhấp nháy */
+    animation: none !important;
+    
+    /* Màu sắc trung tính */
+    background: #1e293b !important; /* Nền xám đậm */
+    color: rgba(255, 255, 255, 0.7) !important; /* Chữ trắng đục */
+}
+
+/* 3. Khi di chuột vào (Hover) */
+.sidebar-trigger:hover::after {
+    background: #334155 !important; /* Sáng hơn chút */
+    color: #fff !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 3px 0 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 4. Khi menu mở ra (Nút đóng X) */
+body:has(.sidebar:hover) .sidebar-trigger::after,
+body.pinned-mode .sidebar-trigger::after {
+    background: #ef4444 !important; /* Màu đỏ phẳng (không neon) */
+    border-color: #b91c1c !important;
+    color: white !important;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.3) !important;
 }
 
 /* --- TƯƠNG THÍCH GIAO DIỆN SÁNG (YERSIN LIGHT) --- */
+/* Chuyển sang trắng - xám - cam (không phát sáng) */
+
 body.theme-yersin-light .sidebar-trigger {
-    background: #f1f5f9 !important;
-    border-right: 1px solid #ccc !important;
+    border-right: 1px solid #e2e8f0 !important;
+    background: rgba(0,0,0,0.02) !important;
 }
+
 body.theme-yersin-light .sidebar-trigger::after {
-    background: #e65100; /* Màu cam đậm */
-    color: white;
-    border-color: #e65100;
-    box-shadow: 2px 0 10px rgba(230, 81, 0, 0.3);
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important; /* Viền xám */
+    color: #64748b !important; /* Chữ xám */
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05) !important;
 }
-body.theme-yersin-light .sidebar-trigger:hover {
-    background: #fff3e0 !important;
-}
+
 body.theme-yersin-light .sidebar-trigger:hover::after {
-    background: #ef6c00;
-    color: white;
+    background: #f8fafc !important;
+    color: #0f172a !important; /* Chữ đen */
+    border-color: #94a3b8 !important;
+}
+
+/* Nút đóng màu đỏ phẳng cho theme sáng */
+body.theme-yersin-light:has(.sidebar:hover) .sidebar-trigger::after,
+body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
+    background: #ea580c !important; /* Cam đậm phẳng */
+    border-color: #c2410c !important;
+}
+/* ============================================================== */
+/* GIAO DIỆN THẺ HỌC SINH CHỮ NHẬT (COMPACT HORIZONTAL CARD) */
+/* ============================================================== */
+
+/* 1. Chỉnh lại lưới hiển thị: Thẻ rộng hơn và xếp khít hơn */
+.grid-container {
+    /* minmax 260px giúp xếp được 3-4 thẻ trên 1 hàng laptop */
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; 
+    gap: 12px !important; /* Khoảng cách giữa các thẻ nhỏ lại */
+}
+
+/* 2. Biến thẻ thành hình chữ nhật ngang */
+.student-card {
+    display: flex !important; /* Xếp ngang */
+    flex-direction: row !important;
+    align-items: center !important; /* Căn giữa dọc */
+    justify-content: flex-start !important;
+    text-align: left !important; /* Chữ canh trái */
+    
+    padding: 10px 15px !important; /* Giảm vùng đệm */
+    min-height: 80px !important;   /* Chiều cao cố định nhỏ gọn */
+    gap: 15px !important;          /* Khoảng cách giữa ảnh và chữ */
+}
+
+/* 3. Thu nhỏ Avatar và đưa sang trái */
+.student-card .avatar-container {
+    width: 50px !important;
+    height: 50px !important;
+    margin: 0 !important; /* Bỏ căn giữa cũ */
+    flex-shrink: 0 !important; /* Không bị bóp méo */
+    border-width: 2px !important;
+}
+
+/* Hiệu ứng Galaxy quanh avatar nhỏ lại */
+.student-card .galaxy-system {
+    transform: scale(0.7); /* Thu nhỏ hiệu ứng */
+}
+
+/* 4. Định dạng lại phần Tên và Lớp (Class ảo do JS sinh ra) */
+.student-card-info {
+    flex: 1; /* Chiếm hết khoảng trống ở giữa */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden; /* Ẩn chữ nếu quá dài */
+}
+
+.student-card-name {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    margin-bottom: 2px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.student-card-class {
+    font-size: 11px !important;
+    opacity: 0.7;
+}
+
+/* 5. Điểm số nằm gọn bên phải */
+.card-score-badge {
+    margin-top: 0 !important; /* Bỏ margin cũ */
+    font-size: 16px !important;
+    padding: 5px 10px !important;
+    min-width: 35px;
+    text-align: center;
+    background: rgba(0,0,0,0.2) !important;
+}
+
+/* 6. Dấu tích và STT */
+.red-tick-badge {
+    top: -5px !important;
+    right: -5px !important;
+    transform: scale(0.8) !important;
+}
+
+.card-stt {
+    top: 5px !important;
+    left: 5px !important;
+    font-size: 9px !important;
+    display: none; /* Tùy chọn: Ẩn STT cho gọn (hoặc bỏ dòng này nếu muốn hiện) */
+}
+
+/* 7. Dòng chữ chạy (Marquee) nhỏ lại */
+.marquee-container {
+    position: absolute;
+    bottom: 2px;
+    left: 80px; /* Né avatar ra */
+    right: 10px;
+    height: 15px !important;
+    font-size: 10px !important;
 }
 </style>
 </head>
@@ -2992,9 +3165,7 @@ body.theme-yersin-light .sidebar-trigger:hover::after {
 <div class="sidebar" id="sidebar">
   <div class="brand">
     <span>YERSIN SCHOOL</span>
-    <div style="text-align: center; padding: 20px 0;">
-        <h3 style="color: white; margin-top: 10px; font-size: 16px;">TRẠM VŨ TRỤ</h3>
-    </div>
+
     <span id="pinTrigger" onclick="toggleSidebarPin()" style="cursor: pointer; font-size: 16px; margin-left: auto; margin-right: 10px; opacity: 0.7; transition: 0.3s;" title="Ghim/Bỏ ghim Menu">
         📌
     </span>
@@ -7745,39 +7916,35 @@ function getAutoAvatar(name) {
 // 🛠️ HÀM RENDER LIST (ĐÃ SỬA LỖI SỐ THỨ TỰ THEO LỚP)
 // ============================================================
 
+// ============================================================
+// HÀM RENDER DANH SÁCH: GIAO DIỆN CHỮ NHẬT (COMPACT)
+// ============================================================
 function renderList() {
     const div = document.getElementById('listContainer'); 
     div.innerHTML = "";
 
-    // 1. Lấy các điều kiện lọc
+    // 1. Lấy điều kiện lọc
     const cls = document.getElementById('classSelect').value;  
     const txt = document.getElementById('search').value.toLowerCase();
     const vMonth = document.getElementById('viewMonth').value;
     const vYear = document.getElementById('viewYear').value;
     const timeKey = `${vMonth}-${vYear}`;
     
-    // Lấy màu chủ đạo từ CSS
+    // Màu chủ đạo
     const rootStyles = getComputedStyle(document.documentElement); 
     const mainColor = rootStyles.getPropertyValue('--neon-purple').trim();
 
-    // 2. [QUAN TRỌNG] LỌC DANH SÁCH TRƯỚC KHI VẼ
-    // Tạo một danh sách mới chỉ chứa các học sinh thỏa mãn điều kiện
+    // 2. Lọc danh sách
     const filteredList = students.filter(s => {
         const parts = s.split(" - "); 
         const name = parts[0]; 
         const c = parts[1] || "Chưa xếp lớp";
-
-        // Nếu đang chọn lớp mà không khớp -> Loại
         if (cls && c !== cls) return false;
-        
-        // Nếu đang tìm kiếm mà tên không khớp -> Loại
         if (txt && !name.toLowerCase().includes(txt)) return false;
-        
-        return true; // Giữ lại
+        return true;
     });
 
-    // 3. VẼ GIAO DIỆN DỰA TRÊN DANH SÁCH ĐÃ LỌC
-    // Lúc này 'idx' sẽ chạy từ 0 -> n của lớp đó, nên STT sẽ đúng
+    // 3. Vẽ thẻ
     filteredList.forEach((s, idx) => {
         const parts = s.split(" - "); 
         const name = parts[0]; 
@@ -7786,20 +7953,19 @@ function renderList() {
         const hkData = getHKData(s);
         const score = hkData.final;
 
-        // Logic màu sắc điểm số
-        let emojiIcon = "😐"; let bgStyle = "#2a2a4a";
-        if (score >= 80) { emojiIcon = "😎"; bgStyle = "linear-gradient(135deg, #00b09b, #96c93d)"; } 
-        else if (score >= 65) { emojiIcon = "🙂"; bgStyle = "linear-gradient(135deg, #4facfe, #00f2fe)"; } 
-        else if (score >= 50) { emojiIcon = "🤔"; bgStyle = "linear-gradient(135deg, #f6d365, #fda085)"; } 
-        else { emojiIcon = "😴"; bgStyle = "linear-gradient(135deg, #f43f5e, #33001b)"; }
+        // Avatar
+        let bgStyle = "#2a2a4a";
+        if (score >= 80) bgStyle = "linear-gradient(135deg, #00b09b, #96c93d)"; 
+        else if (score >= 65) bgStyle = "linear-gradient(135deg, #4facfe, #00f2fe)"; 
+        else if (score >= 50) bgStyle = "linear-gradient(135deg, #f6d365, #fda085)"; 
+        else bgStyle = "linear-gradient(135deg, #f43f5e, #33001b)"; 
 
-        // Logic Avatar
         let avatarHTML = "";
         if (avatars[s]) {
             avatarHTML = `<img src="${avatars[s]}" class="avatar-img">`;
         } else {
             const autoSrc = getAutoAvatar(name);
-            avatarHTML = `<img src="${autoSrc}" class="avatar-img" style="background:${bgStyle}; padding: 3px; box-sizing:border-box">`;
+            avatarHTML = `<img src="${autoSrc}" class="avatar-img" style="background:${bgStyle}; padding: 2px;">`;
         }
 
         const themeClass = currentMode === 'hk' ? 'hk-theme' : 'acad-theme'; 
@@ -7819,39 +7985,56 @@ function renderList() {
             commentText = targetDB[s].monthlyNotes[timeKey]; 
         }
 
-        // Tạo thẻ Card
+        // --- CẤU TRÚC THẺ MỚI (PHẲNG & CHỮ NHẬT) ---
         const card = document.createElement("div"); 
         card.className = `student-card ${themeClass} ${hasCheck ? 'has-monthly-check' : ''} ${isSelected ? 'selected-active' : ''}`;
         card.setAttribute('data-id', s);
         card.onclick = (e) => handleCardClick(e, s);
 
-        // Nội dung thẻ
-        // [SỬA LỖI] idx + 1 ở đây sẽ là 1, 2, 3... của lớp hiện tại
         card.innerHTML = `
             <div class="red-tick-badge">✓</div>
-            <div class="card-stt" style="color:var(--text); opacity:0.3; font-size:12px; font-weight:bold; position:absolute; top:10px; left:10px;">#${idx+1}</div>
+            <div class="card-stt">#${idx+1}</div>
+            
             <div class="avatar-container">
                 ${avatarHTML} 
-                <div class="galaxy-system"><div class="g-layer-1"></div><div class="g-dust"></div></div>
+                <div class="galaxy-system"><div class="g-layer-1"></div></div>
             </div>
-            <div style="font-weight:700; margin-bottom:5px; pointer-events:none">${name}</div>
-            <div style="font-size:12px; opacity:0.7; margin-bottom:2px; pointer-events:none">${c}</div>
-            <div class="marquee-container"><div class="marquee-text">💬 T${vMonth}: ${commentText}</div></div>
-            <div class="card-score-badge" style="color:${color}; border:1px solid ${color}; box-shadow: 0 0 10px ${color}40">${displayVal}</div>
+            
+            <div class="student-card-info">
+                <div class="student-card-name">${name}</div>
+                <div class="student-card-class">${c}</div>
+            </div>
+            
+            <div class="card-score-badge" style="color:${color}; border-color:${color}">${displayVal}</div>
+            
+            <div class="marquee-container" style="${hasCheck ? '' : 'display:none'}">
+                <div class="marquee-text">💬 ${commentText}</div>
+            </div>
         `;
         
-        // Hiệu ứng hover
-        card.onmouseenter = function() { if(currentMode === 'hk' && !hasCheck && !isSelected) { this.style.borderColor = mainColor; this.style.boxShadow = `0 0 25px ${mainColor}`; }};
-        card.onmouseleave = function() { if(!selectedStudents.has(s) && !hasCheck) { this.style.borderColor = 'rgba(255,255,255,0.08)'; this.style.boxShadow = 'none'; }};
+        // Hover effect
+        card.onmouseenter = function() { 
+            if(currentMode === 'hk' && !hasCheck && !isSelected && document.body.classList.contains('theme-yersin-light')) {
+                this.style.borderColor = '#fb8c00'; // Cam đậm cho theme sáng
+            } else if (currentMode === 'hk' && !hasCheck && !isSelected) {
+                this.style.borderColor = mainColor; 
+                this.style.boxShadow = `0 0 15px ${mainColor}40`;
+            }
+        };
+        card.onmouseleave = function() { 
+            if(!selectedStudents.has(s) && !hasCheck) { 
+                this.style.borderColor = document.body.classList.contains('theme-yersin-light') ? '#e2e8f0' : 'rgba(255,255,255,0.08)'; 
+                this.style.boxShadow = document.body.classList.contains('theme-yersin-light') ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'; 
+            }
+        };
         
         div.appendChild(card);
     });
 
-    // Thông báo nếu không có học sinh nào
     if(filteredList.length === 0) {
         div.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; opacity: 0.5;">
             <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
-            Không tìm thấy học sinh nào trong lớp này.
+            Không tìm thấy học sinh nào.
         </div>`;
     }
 }

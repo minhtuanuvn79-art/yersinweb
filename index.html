@@ -10858,6 +10858,97 @@ function discardAndClose() {
     
     showToast("Đã đóng (Không lưu thay đổi mới nhất)", "info");
 }
+// ============================================================
+// ⌨️ HỆ THỐNG PHÍM TẮT (ĐÃ BỎ CTRL+S)
+// ============================================================
+
+document.addEventListener('keydown', function(e) {
+    // 1. Kiểm tra xem người dùng có đang gõ văn bản không
+    const activeTag = document.activeElement.tagName.toLowerCase();
+    const isTyping = (activeTag === 'input' || activeTag === 'textarea' || document.activeElement.isContentEditable);
+
+    // --- PHÍM ESC (THOÁT / ĐÓNG / HỦY CHỌN) ---
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        
+        // Ưu tiên 1: Đóng các Modal đang mở
+        const modals = document.querySelectorAll('.modal-overlay');
+        let isModalClosed = false;
+        
+        // Đóng menu chuột phải trước
+        if (document.getElementById('contextMenu') && document.getElementById('contextMenu').style.display === 'block') {
+            document.getElementById('contextMenu').style.display = 'none';
+            isModalClosed = true;
+        } else {
+            // Kiểm tra các modal lớn
+            const modalIds = ['saveConfirmModal', 'teacherEditModal', 'editBtnModal', 'schEditModal', 'schoolManagerModal', 'classManagerModal', 'guideModal', 'addModal', 'printPreviewModal', 'confirmModal', 'wheelModal', 'commentManagerModal', 'profileModal'];
+            
+            for (let id of modalIds) {
+                const m = document.getElementById(id);
+                if (m && m.style.display === 'flex') {
+                    if (id === 'profileModal') {
+                        requestCloseProfile(); 
+                    } else if (id === 'saveConfirmModal') {
+                        discardAndClose(); 
+                    } else {
+                        m.style.display = 'none';
+                    }
+                    isModalClosed = true;
+                    break; 
+                }
+            }
+        }
+
+        // Ưu tiên 2: Hủy chọn nếu không có modal nào mở
+        if (!isModalClosed) {
+            if (typeof clearSelection === 'function') clearSelection();
+            if (typeof backToTKBList === 'function' && document.getElementById('tkbDetailView').style.display === 'block') backToTKBList();
+            
+            // Đóng menu phải
+            const rsPanel = document.getElementById('rsPanel');
+            if(rsPanel && rsPanel.classList.contains('open')) toggleRightMenu();
+        }
+    }
+
+    // --- PHÍM ENTER (XÁC NHẬN) ---
+    if (e.key === 'Enter') {
+        if (document.getElementById('confirmModal').style.display === 'flex') {
+            e.preventDefault();
+            commitScore(); 
+        } else if (document.getElementById('addModal').style.display === 'flex') {
+            e.preventDefault();
+            addNewStudentManual(); 
+        } else if (document.getElementById('addClassModal').style.display === 'flex') {
+            e.preventDefault();
+            confirmAddClass(); 
+        } else if (document.getElementById('saveConfirmModal').style.display === 'flex') {
+            e.preventDefault();
+            saveAndCloseProfile(); 
+        } else if (document.getElementById('wheelModal').style.display === 'flex') {
+            e.preventDefault();
+            spin();
+        }
+    }
+
+    // --- PHÍM DELETE (XÓA) ---
+    if (e.key === 'Delete') {
+        // Chỉ xóa khi KHÔNG gõ chữ
+        if (!isTyping) {
+            if (selectedStudents && selectedStudents.size > 0) {
+                bulkDelete();
+            }
+        }
+    }
+
+    // --- PHÍM CTRL + A (CHỌN TẤT CẢ) ---
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        if (!isTyping) {
+            e.preventDefault(); 
+            if (typeof toggleSelectAll === 'function') toggleSelectAll();
+            showToast("Đã chọn tất cả học sinh đang hiển thị", "info");
+        }
+    }
+});
 // --- KẾT THÚC CẤU HÌNH ---
 // Khi tạo HTML trong vòng lặp:
 // html += `<span class="badge-rank ${getRankClass(hs.hanhKiem)}">${hs.hanhKiem}</span>`;

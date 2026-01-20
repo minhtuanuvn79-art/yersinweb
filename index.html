@@ -3406,6 +3406,65 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
     50% { filter: blur(4px); transform: translateY(2px); }
     100% { filter: blur(2px); transform: translateY(-2px); }
 }
+/* --- HIỆU ỨNG JACKPOT PRO --- */
+
+/* 1. Tạo hiệu ứng màn hình lồi (3D Glass) */
+.reel-window {
+    background: linear-gradient(180deg, #000 0%, #222 20%, #fff 50%, #222 80%, #000 100%) !important;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 0 10px rgba(255, 215, 0, 0.3) !important;
+    border: 4px solid #444 !important;
+    border-radius: 15px !important;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Lớp phủ bóng kính */
+.reel-window::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.1) 100%);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* 2. Hiệu ứng chữ chạy siêu tốc (Motion Blur) */
+.reel-strip {
+    /* Font số điện tử hoặc đậm */
+    font-family: 'Impact', 'Arial Black', sans-serif !important; 
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    z-index: 1;
+    /* Hiệu ứng đổ bóng chữ 3D */
+    text-shadow: 0 2px 0 #ccc, 0 4px 0 #999, 0 6px 0 #555, 0 8px 10px rgba(0,0,0,0.5) !important;
+}
+
+/* Class kích hoạt khi quay */
+.spinning-reel {
+    /* Làm mờ dọc để tạo cảm giác quay nhanh */
+    filter: blur(0px); 
+    animation: motionBlur 0.1s infinite linear;
+    color: rgba(255, 255, 255, 0.8) !important; /* Chữ hơi mờ đi */
+    text-shadow: 0 0 20px var(--neon-cyan) !important; /* Phát sáng nhòe */
+}
+
+@keyframes motionBlur {
+    0% { transform: translateY(-5px) scaleY(1.1); filter: blur(2px); }
+    50% { transform: translateY(5px) scaleY(1.1); filter: blur(4px); }
+    100% { transform: translateY(-5px) scaleY(1.1); filter: blur(2px); }
+}
+
+/* Hiệu ứng khi trúng thưởng */
+.winner-flash {
+    animation: flashGold 0.5s infinite alternate;
+    font-size: 45px !important;
+    color: #d35400 !important;
+}
+
+@keyframes flashGold {
+    from { text-shadow: 0 0 10px #fff, 0 0 20px #ffeb3b; transform: scale(1); }
+    to { text-shadow: 0 0 20px #fff, 0 0 40px #ff5722; transform: scale(1.1); }
+}
 </style>
 </head>
 
@@ -7657,14 +7716,13 @@ function initGameWheel() { gameWheelCanvas = $('gameWheelCanvas'); gameWheelCtx 
 function drawGameWheel() { const list = getGameInputList(); const colors = ['#bd00ff', '#00eaff', '#00ffcc', '#fbbf24', '#4ade80', '#f43f5e', '#3b82f6']; const num = list.length > 0 ? list.length : 2; const data = list.length > 0 ? list : ["Nhập tên", "Để quay"]; const arc = (2 * Math.PI) / num; const cx = 200, cy = 200, r = 195; gameWheelCtx.clearRect(0, 0, 400, 400); for (let i = 0; i < num; i++) { const angle = i * arc - Math.PI / 2; gameWheelCtx.beginPath(); gameWheelCtx.moveTo(cx, cy); gameWheelCtx.arc(cx, cy, r, angle, angle + arc); gameWheelCtx.lineTo(cx, cy); gameWheelCtx.fillStyle = colors[i % colors.length]; gameWheelCtx.fill(); gameWheelCtx.stroke(); gameWheelCtx.save(); gameWheelCtx.translate(cx, cy); gameWheelCtx.rotate(angle + arc / 2); gameWheelCtx.textAlign = "right"; gameWheelCtx.fillStyle = "#fff"; gameWheelCtx.font = "bold 14px Quicksand"; gameWheelCtx.shadowColor = "black"; gameWheelCtx.shadowBlur = 4; gameWheelCtx.fillText(data[i].substring(0, 18), r - 20, 5); gameWheelCtx.restore(); } }
 function spinGameWheel() { const list = getGameInputList(); if(list.length < 2) return showToast("Cần ít nhất 2 người để quay!", "error"); if(isSpinning) return; isSpinning = true; $('gameWheelResult').innerText = "Đang quay..."; let currentRot = 0; const spins = 10; const randomDeg = Math.floor(Math.random() * 360); const totalDeg = spins * 360 + randomDeg; gameWheelCanvas.style.transition = "transform 6s cubic-bezier(0.25, 0.1, 0.25, 1)"; gameWheelCanvas.style.transform = `rotate(${totalDeg}deg)`; let tickCount = 0; const intv = setInterval(()=>{ tickCount++; if(tickCount < 30) playTickSound(); else clearInterval(intv);}, 200); setTimeout(() => { isSpinning = false; const actualAngle = totalDeg % 360; const arcDeg = 360 / list.length; let index = Math.floor((360 - actualAngle + 90) % 360 / arcDeg); index = index % list.length; const winner = list[index]; playWinSound(); $('gameWheelResult').innerText = `🎉 NGƯỜI ĐƯỢC CHỌN: ${winner}`; showCelebration(winner); gameWheelCanvas.style.transition = 'none'; gameWheelCanvas.style.transform = `rotate(${actualAngle}deg)`; }, 6000); }
 
-// --- JACKPOT LOGIC (PHIÊN BẢN 1 CỘT DUY NHẤT) ---
+// --- JACKPOT LOGIC PRO (HIỆU ỨNG & ÂM THANH) ---
 
 let jackpotInterval;
 let lastJackpotWinner = ""; 
 
 function spinJackpot() {
     const list = getGameInputList();
-    // Kiểm tra danh sách rỗng
     if (list.length < 1 || (list.length === 1 && list[0] === "")) {
         return showToast("Danh sách trống! Vui lòng nạp tên học sinh.", "error");
     }
@@ -7676,21 +7734,32 @@ function spinJackpot() {
     
     resultDiv.innerText = "";
     btnRemove.style.display = 'none';
+    reel.className = "reel-strip spinning-reel"; // Kích hoạt hiệu ứng mờ Motion Blur
+    reel.style.background = "transparent"; // Để nền kính của cha hiện ra
     
-    // Bắt đầu hiệu ứng quay
-    playTickSound();
-    
-    // Clear interval cũ nếu có
+    // Nếu Audio bị ngủ (do trình duyệt chặn), đánh thức nó
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+
+    // Clear interval cũ
     if (jackpotInterval) clearInterval(jackpotInterval);
     
-    reel.classList.add('spinning-reel'); // Thêm hiệu ứng rung/mờ
+    // --- GIAI ĐOẠN 1: TĂNG TỐC (ACCELERATION) ---
+    // Quay siêu tốc, âm thanh dồn dập
+    let speed = 50; 
+    let counter = 0;
     
-    // QUAY LIÊN TỤC (Tốc độ 50ms)
     jackpotInterval = setInterval(() => {
+        // Đổi tên liên tục
         reel.innerText = getRandomItem(list);
-    }, 50);
+        
+        // Phát âm thanh rẹt rẹt (chỉ phát mỗi 2 lần đổi tên để đỡ ồn)
+        if(counter % 2 === 0) playSlotSpinSound();
+        counter++;
+        
+    }, speed);
 
-    // DỪNG SAU 2.5 GIÂY
+    // --- GIAI ĐOẠN 2: DỪNG (STOP) ---
+    // Quay trong 3 giây rồi dừng
     setTimeout(() => { 
         clearInterval(jackpotInterval);
         
@@ -7698,44 +7767,103 @@ function spinJackpot() {
         const winner = getRandomItem(list);
         lastJackpotWinner = winner; 
 
-        // Hiển thị kết quả
+        // 1. Tắt hiệu ứng mờ
         reel.classList.remove('spinning-reel');
         reel.innerText = winner;
-        reel.style.background = "#fff176"; // Nháy vàng
         
-        // Hiệu ứng nảy
-        reel.animate([
-            { transform: 'scale(0.8)' },
-            { transform: 'scale(1.2)' },
-            { transform: 'scale(1)' }
-        ], { duration: 300 });
+        // 2. Phát tiếng "KENG!" chốt hạ
+        playSlotStopSound(); 
+        
+        // 3. Hiệu ứng trúng thưởng (Flash)
+        reel.classList.add('winner-flash');
+        
+        // 4. Hiệu ứng rung lắc máy (nếu muốn)
+        const machine = document.querySelector('.jackpot-machine');
+        if(machine) {
+            machine.animate([
+                { transform: 'translate(0, 0)' },
+                { transform: 'translate(-5px, 5px)' },
+                { transform: 'translate(5px, -5px)' },
+                { transform: 'translate(0, 0)' }
+            ], { duration: 200 });
+        }
 
-        setTimeout(() => reel.style.background = "rgba(255,255,255,0.9)", 300);
-        
-        playWinSound();
+        // 5. Ăn mừng
         showCelebration(winner);
-        resultDiv.innerText = `🎉 CHÚC MỪNG: ${winner}`;
+        resultDiv.innerHTML = `🎉 CHÚC MỪNG: <span style="color:#fff; background:#d35400; padding:0 10px; border-radius:5px">${winner}</span>`;
 
-        // --- LOGIC XÓA ---
+        // --- LOGIC XÓA (GIỮ NGUYÊN) ---
         const isAuto = document.getElementById('chkAutoRemoveJackpot').checked;
         
         if (isAuto) {
-            // Tự động xóa sau 2 giây
             setTimeout(() => {
                 removePlayerFromSource(winner);
                 showToast(`🚫 Đã loại "${winner}" khỏi danh sách`, "info");
-                
-                // Reset về trạng thái chờ
+                reel.classList.remove('winner-flash');
                 reel.innerText = "TIẾP THEO...";
                 resultDiv.innerText = "";
-            }, 2000);
+            }, 3000); // Đợi 3s cho tận hưởng chiến thắng
         } else {
-            // Hiện nút xóa thủ công
             btnRemove.innerText = `🚫 Xóa "${winner}" khỏi danh sách`;
             btnRemove.style.display = 'inline-block';
+            // Tắt nhấp nháy sau 5s cho đỡ mỏi mắt
+            setTimeout(() => reel.classList.remove('winner-flash'), 5000);
         }
 
-    }, 2500);
+    }, 3000);
+}
+// --- BỘ ÂM THANH MÁY SLOT (REALISTIC) ---
+
+// 1. Tiếng quay cơ học (Rẹt rẹt rẹt...)
+function playSlotSpinSound() {
+    if(!appConfig.sound) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    // Dùng sóng Sawtooth để tạo tiếng lách cách kim loại
+    osc.type = 'sawtooth';
+    
+    // Tần số thay đổi nhanh để tạo tiếng rẹt
+    osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.1);
+    
+    // Volume giảm cực nhanh (tiếng gõ ngắn)
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+}
+
+// 2. Tiếng chốt dừng lại (Cạch! Keng!)
+function playSlotStopSound() {
+    if(!appConfig.sound) return;
+    
+    // Tiếng va đập trầm (Thump)
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'square';
+    osc1.frequency.setValueAtTime(150, audioCtx.currentTime);
+    osc1.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.2);
+    gain1.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(); osc1.stop(audioCtx.currentTime + 0.2);
+
+    // Tiếng kim loại vang (Ding)
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'sine'; // Sóng sine cho tiếng chuông
+    osc2.frequency.setValueAtTime(800, audioCtx.currentTime);
+    gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5); // Vang lâu hơn
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(); osc2.stop(audioCtx.currentTime + 1.5);
 }
 
 // Hàm xóa thủ công

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Trạm Vũ Trụ Yersin - Galaxy Smart Edition</title>
+<title>Yersin - Edition</title>
 <link rel="icon" href="logo.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Times+New+Roman:wght@400;700&display=swap" rel="stylesheet">
@@ -3404,16 +3404,33 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
 
         <div class="game-main">
             <div id="tab-wheel" class="game-content active">
-                <div class="wheel-wrapper" style="transform: scale(1.2); margin-top: 50px;">
-                    <div class="wheel-pointer"></div>
-                    <div class="wheel-center">⚡</div>
-                    <canvas id="gameWheelCanvas" width="400" height="400"></canvas>
-                </div>
-                <div style="text-align:center; margin-top:60px">
-                    <button class="btn green" style="padding:15px 40px; font-size:20px; font-weight:bold; box-shadow:0 0 20px rgba(74, 222, 128, 0.4)" onclick="spinGameWheel()">QUAY NGAY</button>
-                    <div id="gameWheelResult" style="margin-top:20px; font-size:24px; font-weight:bold; color:var(--neon-gold); text-shadow:0 0 15px currentColor; min-height:40px"></div>
-                </div>
-            </div>
+    <div class="wheel-wrapper" style="transform: scale(1.2); margin-top: 50px;">
+        <div class="wheel-pointer"></div>
+        <div class="wheel-center">⚡</div>
+        <canvas id="gameWheelCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <div class="switch-container" style="justify-content:center; margin-top:50px; background:rgba(0,0,0,0.3); border:1px solid var(--neon-red); width: fit-content; margin-left: auto; margin-right: auto; padding: 10px 20px;">
+        <div style="text-align:left; margin-right:15px">
+            <div style="font-weight:bold; color:var(--neon-red); font-size:13px; text-transform: uppercase;">🚫 Chế độ loại trực tiếp</div>
+            <div style="font-size:10px; opacity:0.7; color:white">Tự động xóa tên người trúng sau 2 giây</div>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="chkAutoRemoveWinner">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div style="text-align:center; margin-top:20px">
+        <button class="btn green" style="padding:15px 40px; font-size:20px; font-weight:bold; box-shadow:0 0 20px rgba(74, 222, 128, 0.4)" onclick="spinGameWheel()">QUAY NGAY</button>
+        
+        <div id="gameWheelResult" style="margin-top:20px; font-size:24px; font-weight:bold; color:var(--neon-gold); text-shadow:0 0 15px currentColor; min-height:40px"></div>
+        
+        <button id="btnRemoveWinner" class="btn red" style="display:none; margin-top:10px; font-size:12px; background: rgba(244, 63, 94, 0.2); border: 1px solid var(--neon-red);" onclick="removeCurrentWinner()">
+            🚫 Xóa người này khỏi vòng quay
+        </button>
+    </div>
+</div>
 
             <div id="tab-race" class="game-content">
                 <div style="display:flex; justify-content:space-between; align-items:center">
@@ -11505,6 +11522,116 @@ function handleCellDoubleClick(element, target, day, period) {
     // (Tùy chọn) Đồng bộ lịch sử nếu cần
     if (typeof tkbHistory !== 'undefined' && typeof currentWeek !== 'undefined') {
          tkbHistory[currentWeek] = JSON.parse(JSON.stringify(tkbData));
+    }
+}
+// --- LOGIC XỬ LÝ VÒNG QUAY MỚI (DÁN VÀO CUỐI SCRIPT) ---
+
+// 1. Hàm xóa người chơi khỏi ô nhập liệu và vẽ lại vòng quay
+function removePlayerFromSource(nameToRemove) {
+    const inputArea = document.getElementById('gameInputData');
+    if (!inputArea) return;
+
+    // Lấy danh sách hiện tại từ ô nhập liệu
+    let list = inputArea.value.split('\n').map(s => s.trim()).filter(s => s !== "");
+    
+    // Lọc bỏ người thắng cuộc
+    const newList = list.filter(name => name !== nameToRemove);
+    
+    // Cập nhật lại ô nhập liệu
+    inputArea.value = newList.join('\n');
+    
+    // Vẽ lại vòng quay ngay lập tức với danh sách mới
+    drawGameWheel();
+}
+
+// 2. Hàm Quay Số (Đã nâng cấp)
+function spinGameWheel() { 
+    const list = getGameInputList(); 
+    if(list.length < 2) return showToast("Cần ít nhất 2 người để quay!", "error"); 
+    if(isSpinning) return; 
+    
+    isSpinning = true; 
+    $('gameWheelResult').innerText = "Đang quay..."; 
+    $('btnRemoveWinner').style.display = 'none'; // Ẩn nút xóa thủ công đi
+    
+    // Tính toán góc quay
+    let currentRot = 0; 
+    const spins = 10; // Số vòng quay
+    const randomDeg = Math.floor(Math.random() * 360); 
+    const totalDeg = spins * 360 + randomDeg; 
+    
+    // Hiệu ứng CSS quay
+    gameWheelCanvas.style.transition = "transform 6s cubic-bezier(0.25, 0.1, 0.25, 1)"; 
+    gameWheelCanvas.style.transform = `rotate(${totalDeg}deg)`; 
+    
+    // Âm thanh 'tạch tạch' khi quay
+    let tickCount = 0; 
+    const intv = setInterval(()=>{ 
+        tickCount++; 
+        if(tickCount < 30) playTickSound(); 
+        else clearInterval(intv);
+    }, 200); 
+    
+    // --- KHI QUAY XONG (SAU 6 GIÂY) ---
+    setTimeout(() => { 
+        isSpinning = false; 
+        
+        // Tính toán người thắng dựa trên góc dừng
+        const actualAngle = totalDeg % 360; 
+        const arcDeg = 360 / list.length; 
+        let index = Math.floor((360 - actualAngle + 90) % 360 / arcDeg); 
+        index = index % list.length; 
+        
+        const winnerName = list[index]; 
+        currentWinnerIdx = index; // Lưu vị trí người thắng
+        
+        // Hiệu ứng chiến thắng
+        playWinSound(); 
+        $('gameWheelResult').innerHTML = `🎉 KẾT QUẢ: <span style="color:var(--neon-gold); font-size:28px">${winnerName}</span>`; 
+        showCelebration(winnerName); 
+        
+        // Reset góc quay để lần sau quay tiếp mượt hơn
+        gameWheelCanvas.style.transition = 'none'; 
+        gameWheelCanvas.style.transform = `rotate(${actualAngle}deg)`; 
+
+        // === [LOGIC MỚI] KIỂM TRA TỰ ĐỘNG XÓA ===
+        const isAutoRemove = document.getElementById('chkAutoRemoveWinner').checked;
+        
+        if (isAutoRemove) {
+            // Nếu bật tự động: Đợi 2 giây cho mọi người vỗ tay rồi xóa
+            setTimeout(() => {
+                removePlayerFromSource(winnerName);
+                showToast(`🚫 Đã loại bỏ "${winnerName}" khỏi danh sách`, "info");
+                // Reset text kết quả để sẵn sàng quay người mới
+                $('gameWheelResult').innerHTML = `<span style="opacity:0.7">Sẵn sàng người tiếp theo...</span>`;
+            }, 2500);
+        } else {
+            // Nếu tắt tự động: Hiện nút cho giáo viên tự bấm xóa
+            $('btnRemoveWinner').innerText = `🚫 Xóa "${winnerName}" khỏi vòng quay`;
+            $('btnRemoveWinner').style.display = 'inline-block'; 
+        }
+
+    }, 6000); 
+}
+
+// 3. Hàm Xóa Thủ Công (Khi bấm nút đỏ)
+function removeCurrentWinner() { 
+    // Lấy lại danh sách hiện tại (đề phòng danh sách đã bị sửa đổi)
+    const list = getGameInputList();
+    const winnerName = document.getElementById('gameWheelResult').innerText.replace("🎉 KẾT QUẢ: ", "");
+    
+    // Tìm tên người thắng trong danh sách hiện tại (không dùng index cũ vì có thể lệch)
+    if(list.includes(winnerName) || (currentWinnerIdx > -1 && list[currentWinnerIdx])) { 
+        const targetName = list.includes(winnerName) ? winnerName : list[currentWinnerIdx];
+        
+        if(confirm(`Bạn có chắc muốn loại bỏ "${targetName}" không?`)) { 
+            removePlayerFromSource(targetName); 
+            $('gameWheelResult').innerText = `Đã xóa: ${targetName}`; 
+            $('btnRemoveWinner').style.display = 'none'; 
+        } 
+    } else {
+        // Fallback nếu không tìm thấy tên (hiếm khi xảy ra)
+        showToast("Không tìm thấy người này trong danh sách!", "error");
     }
 }
 // --- KẾT THÚC CẤU HÌNH ---

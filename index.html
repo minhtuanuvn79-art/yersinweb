@@ -3532,33 +3532,40 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
             <div id="tab-race" class="game-content">
     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%">
         
-        <div class="jackpot-machine">
+        <div class="jackpot-machine" style="width: 450px;">
             <div class="jackpot-header">
-                🎰 GALAXY JACKPOT 🎰
+                🎰 GALAXY JACKPOT
             </div>
             
-            <div class="reels-container">
-                <div class="reel-window">
-                    <div id="reel1" class="reel-strip">❓</div>
-                </div>
-                
-                <div class="reel-window center-window">
-                    <div id="reel2" class="reel-strip">SẴN SÀNG</div>
-                </div>
-                
-                <div class="reel-window">
-                    <div id="reel3" class="reel-strip">❓</div>
+            <div class="reels-container" style="justify-content: center;">
+                <div class="reel-window center-window" style="width: 100%; height: 150px; border: 3px solid var(--neon-gold); box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);">
+                    <div id="reelName" class="reel-strip" style="font-size: 35px; line-height: 150px; color: #d35400;">SẴN SÀNG</div>
                 </div>
             </div>
 
             <div class="jackpot-controls">
                 <button class="btn spin-lever" onclick="spinJackpot()">
-                    KÉO CẦN SỐ (SPIN) 🕹️
+                    QUAY SỐ NGẪU NHIÊN 🎲
                 </button>
             </div>
         </div>
 
-        <div id="jackpotResult" style="margin-top:30px; font-size:24px; font-weight:900; color:var(--neon-gold); text-shadow:0 0 20px var(--neon-gold); min-height:40px; text-align:center"></div>
+        <div id="jackpotResult" style="margin-top:25px; font-size:30px; font-weight:900; color:var(--neon-green); text-shadow:0 0 20px var(--neon-green); min-height:40px; text-align:center"></div>
+
+        <button id="btnJackpotRemove" class="btn red" style="display:none; margin-top:15px; font-size: 14px; padding: 10px 30px;" onclick="removeJackpotWinner()">
+            🚫 Xóa người này
+        </button>
+
+        <div class="switch-container" style="justify-content:center; margin-top:30px; background:rgba(0,0,0,0.3); border:1px solid var(--neon-cyan); width: fit-content; padding: 10px 25px; border-radius: 50px;">
+            <div style="text-align:left; margin-right:15px">
+                <div style="font-weight:bold; color:var(--neon-cyan); font-size:13px">CHẾ ĐỘ LOẠI TRỰC TIẾP</div>
+                <div style="font-size:10px; opacity:0.7">Tự động xóa tên sau khi trúng</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="chkAutoRemoveJackpot">
+                <span class="slider"></span>
+            </label>
+        </div>
         
     </div>
 </div>
@@ -7650,91 +7657,101 @@ function initGameWheel() { gameWheelCanvas = $('gameWheelCanvas'); gameWheelCtx 
 function drawGameWheel() { const list = getGameInputList(); const colors = ['#bd00ff', '#00eaff', '#00ffcc', '#fbbf24', '#4ade80', '#f43f5e', '#3b82f6']; const num = list.length > 0 ? list.length : 2; const data = list.length > 0 ? list : ["Nhập tên", "Để quay"]; const arc = (2 * Math.PI) / num; const cx = 200, cy = 200, r = 195; gameWheelCtx.clearRect(0, 0, 400, 400); for (let i = 0; i < num; i++) { const angle = i * arc - Math.PI / 2; gameWheelCtx.beginPath(); gameWheelCtx.moveTo(cx, cy); gameWheelCtx.arc(cx, cy, r, angle, angle + arc); gameWheelCtx.lineTo(cx, cy); gameWheelCtx.fillStyle = colors[i % colors.length]; gameWheelCtx.fill(); gameWheelCtx.stroke(); gameWheelCtx.save(); gameWheelCtx.translate(cx, cy); gameWheelCtx.rotate(angle + arc / 2); gameWheelCtx.textAlign = "right"; gameWheelCtx.fillStyle = "#fff"; gameWheelCtx.font = "bold 14px Quicksand"; gameWheelCtx.shadowColor = "black"; gameWheelCtx.shadowBlur = 4; gameWheelCtx.fillText(data[i].substring(0, 18), r - 20, 5); gameWheelCtx.restore(); } }
 function spinGameWheel() { const list = getGameInputList(); if(list.length < 2) return showToast("Cần ít nhất 2 người để quay!", "error"); if(isSpinning) return; isSpinning = true; $('gameWheelResult').innerText = "Đang quay..."; let currentRot = 0; const spins = 10; const randomDeg = Math.floor(Math.random() * 360); const totalDeg = spins * 360 + randomDeg; gameWheelCanvas.style.transition = "transform 6s cubic-bezier(0.25, 0.1, 0.25, 1)"; gameWheelCanvas.style.transform = `rotate(${totalDeg}deg)`; let tickCount = 0; const intv = setInterval(()=>{ tickCount++; if(tickCount < 30) playTickSound(); else clearInterval(intv);}, 200); setTimeout(() => { isSpinning = false; const actualAngle = totalDeg % 360; const arcDeg = 360 / list.length; let index = Math.floor((360 - actualAngle + 90) % 360 / arcDeg); index = index % list.length; const winner = list[index]; playWinSound(); $('gameWheelResult').innerText = `🎉 NGƯỜI ĐƯỢC CHỌN: ${winner}`; showCelebration(winner); gameWheelCanvas.style.transition = 'none'; gameWheelCanvas.style.transform = `rotate(${actualAngle}deg)`; }, 6000); }
 
-// --- 2. RACING LOGIC ---
-// --- JACKPOT LOGIC (THAY THẾ GAME ĐUA XE) ---
+// --- JACKPOT LOGIC (PHIÊN BẢN 1 CỘT DUY NHẤT) ---
 
-let jackpotInterval1, jackpotInterval2, jackpotInterval3;
-const JP_ICONS = ["💎", "7️⃣", "🍒", "🍇", "🔔", "🍀", "⭐️", "🔥"];
-const JP_PRIZES = ["10 Điểm", "Tràng Pháo Tay", "Miễn Trả Bài", "Cộng 1đ", "Bí Mật", "Chúc May Mắn"];
+let jackpotInterval;
+let lastJackpotWinner = ""; 
 
 function spinJackpot() {
     const list = getGameInputList();
-    if (list.length < 2) return showToast("Cần ít nhất 2 người để quay!", "error");
+    // Kiểm tra danh sách rỗng
+    if (list.length < 1 || (list.length === 1 && list[0] === "")) {
+        return showToast("Danh sách trống! Vui lòng nạp tên học sinh.", "error");
+    }
 
-    // Reset trạng thái
-    const r1 = document.getElementById('reel1');
-    const r2 = document.getElementById('reel2');
-    const r3 = document.getElementById('reel3');
-    document.getElementById('jackpotResult').innerText = "";
+    // Reset giao diện
+    const reel = document.getElementById('reelName');
+    const resultDiv = document.getElementById('jackpotResult');
+    const btnRemove = document.getElementById('btnJackpotRemove');
     
-    // Play sound start
+    resultDiv.innerText = "";
+    btnRemove.style.display = 'none';
+    
+    // Bắt đầu hiệu ứng quay
     playTickSound();
-
-    // 1. QUAY CỘT 1 (ICON) - Dừng sau 1.5s
-    startReel(r1, JP_ICONS, 50);
-    setTimeout(() => { 
-        stopReel(r1, jackpotInterval1, getRandomItem(JP_ICONS)); 
-        playTickSound();
-    }, 1500);
-
-    // 2. QUAY CỘT 2 (TÊN HỌC SINH) - Dừng sau 3s
-    startReel(r2, list, 30); // Tốc độ nhanh hơn
-    setTimeout(() => { 
-        const winner = getRandomItem(list);
-        stopReel(r2, jackpotInterval2, winner); 
-        playWinSound(); // Âm thanh thắng
-        
-        // Hiệu ứng chớp nhoáng
-        r2.style.background = "#fff176"; 
-        setTimeout(() => r2.style.background = "rgba(255,255,255,0.9)", 300);
-        
-        document.getElementById('jackpotResult').innerText = `🎉 CHÚC MỪNG: ${winner}`;
-        showCelebration(winner);
-    }, 3000);
-
-    // 3. QUAY CỘT 3 (PHẦN THƯỞNG) - Dừng sau 4.5s
-    startReel(r3, JP_PRIZES, 50);
-    setTimeout(() => { 
-        stopReel(r3, jackpotInterval3, getRandomItem(JP_PRIZES)); 
-        playTickSound();
-    }, 4500);
-}
-
-// Hàm quay từng cột
-function startReel(el, dataSource, speed) {
+    
     // Clear interval cũ nếu có
-    if(el.id === 'reel1') clearInterval(jackpotInterval1);
-    if(el.id === 'reel2') clearInterval(jackpotInterval2);
-    if(el.id === 'reel3') clearInterval(jackpotInterval3);
-
-    el.classList.add('spinning-reel'); // Thêm hiệu ứng mờ
+    if (jackpotInterval) clearInterval(jackpotInterval);
     
-    const interval = setInterval(() => {
-        el.innerText = getRandomItem(dataSource);
-    }, speed);
-
-    // Gán interval vào biến toàn cục để stop sau này
-    if(el.id === 'reel1') jackpotInterval1 = interval;
-    if(el.id === 'reel2') jackpotInterval2 = interval;
-    if(el.id === 'reel3') jackpotInterval3 = interval;
-}
-
-// Hàm dừng cột
-function stopReel(el, intervalId, finalVal) {
-    clearInterval(intervalId);
-    el.classList.remove('spinning-reel');
-    el.innerText = finalVal;
+    reel.classList.add('spinning-reel'); // Thêm hiệu ứng rung/mờ
     
-    // Hiệu ứng nảy nhẹ khi dừng
-    el.animate([
-        { transform: 'translateY(-20px)' },
-        { transform: 'translateY(0)' }
-    ], { duration: 200, easing: 'ease-out' });
+    // QUAY LIÊN TỤC (Tốc độ 50ms)
+    jackpotInterval = setInterval(() => {
+        reel.innerText = getRandomItem(list);
+    }, 50);
+
+    // DỪNG SAU 2.5 GIÂY
+    setTimeout(() => { 
+        clearInterval(jackpotInterval);
+        
+        // Chọn người thắng
+        const winner = getRandomItem(list);
+        lastJackpotWinner = winner; 
+
+        // Hiển thị kết quả
+        reel.classList.remove('spinning-reel');
+        reel.innerText = winner;
+        reel.style.background = "#fff176"; // Nháy vàng
+        
+        // Hiệu ứng nảy
+        reel.animate([
+            { transform: 'scale(0.8)' },
+            { transform: 'scale(1.2)' },
+            { transform: 'scale(1)' }
+        ], { duration: 300 });
+
+        setTimeout(() => reel.style.background = "rgba(255,255,255,0.9)", 300);
+        
+        playWinSound();
+        showCelebration(winner);
+        resultDiv.innerText = `🎉 CHÚC MỪNG: ${winner}`;
+
+        // --- LOGIC XÓA ---
+        const isAuto = document.getElementById('chkAutoRemoveJackpot').checked;
+        
+        if (isAuto) {
+            // Tự động xóa sau 2 giây
+            setTimeout(() => {
+                removePlayerFromSource(winner);
+                showToast(`🚫 Đã loại "${winner}" khỏi danh sách`, "info");
+                
+                // Reset về trạng thái chờ
+                reel.innerText = "TIẾP THEO...";
+                resultDiv.innerText = "";
+            }, 2000);
+        } else {
+            // Hiện nút xóa thủ công
+            btnRemove.innerText = `🚫 Xóa "${winner}" khỏi danh sách`;
+            btnRemove.style.display = 'inline-block';
+        }
+
+    }, 2500);
 }
 
-function getRandomItem(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
+// Hàm xóa thủ công
+function removeJackpotWinner() {
+    if (lastJackpotWinner) {
+        if(confirm(`Bạn chắc chắn muốn xóa "${lastJackpotWinner}"?`)) {
+            removePlayerFromSource(lastJackpotWinner);
+            document.getElementById('jackpotResult').innerText = `Đã xóa: ${lastJackpotWinner}`;
+            document.getElementById('btnJackpotRemove').style.display = 'none';
+            document.getElementById('reelName').innerText = "SẴN SÀNG";
+        }
+    }
 }
+
+// Giữ nguyên hàm getRandomItem (nếu chưa có thì copy vào)
+function getRandomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 // --- 3. RANDOM GROUP LOGIC ---
 function generateGroups() { let list = getGameInputList(); if(list.length < 2) return showToast("Danh sách quá ngắn!", "error"); for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } const mode = $('groupMode').value; const val = parseInt($('groupValue').value); if(val < 1) return; let groups = []; if(mode === 'count') { const numGroups = val; for(let i=0; i<numGroups; i++) groups.push([]); list.forEach((name, idx) => { groups[idx % numGroups].push(name); }); } else { const size = val; for (let i = 0; i < list.length; i += size) { groups.push(list.slice(i, i + size)); } } const res = $('groupResult'); res.innerHTML = ""; const groupColors = ['#4ade80', '#22d3ee', '#bd00ff', '#fbbf24', '#f43f5e']; groups.forEach((g, idx) => { const color = groupColors[idx % groupColors.length]; const box = document.createElement('div'); box.className = 'group-box'; box.style.borderColor = color; let membersHtml = g.map(m => `<li>${m}</li>`).join(''); box.innerHTML = `<div class="group-title" style="color:${color}">NHÓM ${idx+1} (${g.length})</div><ul class="group-list">${membersHtml}</ul>`; res.appendChild(box); }); }
 

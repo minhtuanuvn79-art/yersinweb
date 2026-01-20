@@ -4199,7 +4199,53 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
     75% { transform: rotate(0deg); }
     100% { transform: rotate(0deg); }
 }
+
 </style>
+<div class="modal-overlay" id="tkbCellEditModal" style="z-index: 6000;">
+    <div class="confirm-box" style="width: 400px; border-color: var(--neon-cyan);">
+        <div class="confirm-header" style="color: var(--neon-cyan); display:flex; justify-content:space-between; align-items:center;">
+            <span>✏️ CHỈNH SỬA TIẾT HỌC</span>
+            <span style="cursor:pointer; opacity:0.5" onclick="$('tkbCellEditModal').style.display='none'">✕</span>
+        </div>
+        
+        <div class="confirm-body">
+            <div id="tkbCellInfo" style="text-align:center; margin-bottom:15px; font-size:12px; opacity:0.7; font-style:italic;">...</div>
+
+            <div class="input-group">
+                <label style="color:var(--neon-blue)">Tên Môn Học</label>
+                <input id="editCellSubject" type="text" class="modern-input" placeholder="Ví dụ: Toán, Văn..." onkeyup="if(event.key==='Enter') $('editCellTeacher').focus()">
+            </div>
+
+            <div class="input-group">
+                <label style="color:var(--neon-blue)">Tên Giáo Viên</label>
+                <input id="editCellTeacher" type="text" class="modern-input" placeholder="Ví dụ: T.Hùng, Cô Lan..." onkeyup="if(event.key==='Enter') saveTkbCellData()">
+            </div>
+
+            <div class="switch-container" style="margin-top:10px; background:rgba(255,255,255,0.05)">
+                <div>
+                    <div style="font-weight:bold; font-size:12px">Đánh dấu quan trọng (Highlight)</div>
+                    <div style="font-size:10px; opacity:0.6">Tô màu nổi bật cho ô này</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="editCellHighlight">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <input type="hidden" id="editCellTarget">
+            <input type="hidden" id="editCellDay">
+            <input type="hidden" id="editCellPeriod">
+        </div>
+
+        <div class="confirm-footer" style="justify-content: space-between;">
+            <button class="btn red" onclick="deleteTkbCellData()">🗑️ Xóa Tiết</button>
+            <div style="display:flex; gap:10px">
+                <button class="btn" onclick="$('tkbCellEditModal').style.display='none'">Hủy</button>
+                <button class="btn green" onclick="saveTkbCellData()">💾 Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 <script>
 // --- BẮT ĐẦU CẤU HÌNH ĐỒNG BỘ MÂY (FIREBASE) ---
@@ -5370,9 +5416,10 @@ function renderTKBTable(target) {
                     hlClass = "cute-important";
                 }
 
-                html += `<td onclick="toggleTKBHighlight('${target}', ${d}, ${i}, this)" class="${hlClass}">
-                            <div class="cute-cell">${formatCellDisplay(val)}</div>
-                         </td>`;
+                // --- Thay thế sự kiện click để mở Modal Sửa ---
+                html += `<td onclick="openEditTkbCell('${target}', ${d}, ${i})" class="${hlClass}" style="cursor:pointer;" title="Bấm để Sửa/Xóa">
+                <div class="cute-cell">${formatCellDisplay(val)}</div>
+                </td>`;
             }
             html += `</tr>`;
         }
@@ -11211,6 +11258,146 @@ function confirmEditHistory() {
         document.getElementById('editHistoryModal').style.display = 'none';
         showToast("✅ Đã cập nhật thành công!", "success");
     }
+}
+// ============================================================
+// 🛠️ LOGIC CHỈNH SỬA / XÓA TKB TRỰC TIẾP
+// ============================================================
+
+// 1. Hàm mở Modal khi click vào ô
+function openEditTkbCell(target, day, period) {
+    // Lưu tọa độ vào input ẩn
+    $('editCellTarget').value = target;
+    $('editCellDay').value = day;
+    $('editCellPeriod').value = period;
+
+    // Hiển thị thông tin tiêu đề
+    const dayName = day === 8 ? "Chủ Nhật" : "Thứ " + day;
+    $('tkbCellInfo').innerText = `${target} - ${dayName} - Tiết ${period + 1}`;
+
+    // Lấy dữ liệu hiện tại
+    let currentData = "";
+    if (tkbViewMode === 'teacher' && tkbData.teacher[target] && tkbData.teacher[target][day]) {
+        currentData = tkbData.teacher[target][day][period];
+    } else if (tkbViewMode === 'student' && tkbData.student[target] && tkbData.student[target][day]) {
+        currentData = tkbData.student[target][day][period];
+    } else if (tkbViewMode === 'grad' && tkbData.grad[target] && tkbData.grad[target][day]) {
+        currentData = tkbData.grad[target][day][period];
+    }
+
+    // Phân tích dữ liệu cũ để điền vào ô input
+    let subj = "", teach = "";
+    if (currentData) {
+        // Format chuẩn: "Môn\n(GV)" hoặc "Môn"
+        const parts = currentData.split('\n');
+        subj = parts[0].trim(); // Dòng 1 là môn
+        if (parts.length > 1) {
+            // Dòng 2 là GV, bỏ dấu ngoặc đơn
+            teach = parts.slice(1).join(' ').replace(/[()]/g, '').trim();
+        }
+    }
+
+    $('editCellSubject').value = subj;
+    $('editCellTeacher').value = teach;
+
+    // Kiểm tra trạng thái highlight cũ
+    const hlKey = `${tkbViewMode}_${target}_${day}_${period}`;
+    const isHighlighted = (tkbData.highlights && tkbData.highlights[hlKey]);
+    $('editCellHighlight').checked = !!isHighlighted;
+
+    // Hiện Modal & Focus
+    $('tkbCellEditModal').style.display = 'flex';
+    $('editCellSubject').focus();
+}
+
+// 2. Hàm Lưu dữ liệu (Save)
+function saveTkbCellData() {
+    const target = $('editCellTarget').value;
+    const d = parseInt($('editCellDay').value);
+    const p = parseInt($('editCellPeriod').value);
+    
+    const newSubj = $('editCellSubject').value.trim();
+    const newTeach = $('editCellTeacher').value.trim();
+    const isHl = $('editCellHighlight').checked;
+
+    if (!newSubj) {
+        showToast("Tên môn học không được để trống!", "warning");
+        return;
+    }
+
+    // Format dữ liệu mới: "Môn\n(GV)"
+    let finalStr = newSubj;
+    if (newTeach) {
+        finalStr += `\n(${newTeach})`;
+    }
+
+    // Cập nhật vào Database
+    if (tkbViewMode === 'teacher') {
+        if (!tkbData.teacher[target]) tkbData.teacher[target] = {};
+        if (!tkbData.teacher[target][d]) tkbData.teacher[target][d] = [];
+        tkbData.teacher[target][d][p] = finalStr;
+    } else if (tkbViewMode === 'student') {
+        if (!tkbData.student[target]) tkbData.student[target] = {};
+        if (!tkbData.student[target][d]) tkbData.student[target][d] = [];
+        tkbData.student[target][d][p] = finalStr;
+    } else if (tkbViewMode === 'grad') {
+        if (!tkbData.grad[target]) tkbData.grad[target] = {};
+        if (!tkbData.grad[target][d]) tkbData.grad[target][d] = [];
+        tkbData.grad[target][d][p] = finalStr;
+    }
+
+    // Xử lý Highlight
+    const hlKey = `${tkbViewMode}_${target}_${d}_${p}`;
+    if (!tkbData.highlights) tkbData.highlights = {};
+    if (isHl) tkbData.highlights[hlKey] = true;
+    else delete tkbData.highlights[hlKey];
+
+    // Lưu và render lại
+    saveData(); // Hàm lưu chung của hệ thống
+    
+    // Đồng bộ vào History nếu đang dùng chế độ tuần
+    if (typeof tkbHistory !== 'undefined' && typeof currentWeek !== 'undefined') {
+         tkbHistory[currentWeek] = JSON.parse(JSON.stringify(tkbData));
+         localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
+    }
+
+    renderTKBTable(target); // Vẽ lại bảng
+    $('tkbCellEditModal').style.display = 'none';
+    showToast("✅ Đã cập nhật tiết học!", "success");
+}
+
+// 3. Hàm Xóa dữ liệu (Delete)
+function deleteTkbCellData() {
+    if (!confirm("Bạn có chắc muốn xóa tiết này không?")) return;
+
+    const target = $('editCellTarget').value;
+    const d = parseInt($('editCellDay').value);
+    const p = parseInt($('editCellPeriod').value);
+
+    // Xóa dữ liệu trong DB
+    if (tkbViewMode === 'teacher' && tkbData.teacher[target] && tkbData.teacher[target][d]) {
+        delete tkbData.teacher[target][d][p];
+    } else if (tkbViewMode === 'student' && tkbData.student[target] && tkbData.student[target][d]) {
+        delete tkbData.student[target][d][p];
+    } else if (tkbViewMode === 'grad' && tkbData.grad[target] && tkbData.grad[target][d]) {
+        delete tkbData.grad[target][d][p];
+    }
+
+    // Xóa highlight nếu có
+    const hlKey = `${tkbViewMode}_${target}_${d}_${p}`;
+    if (tkbData.highlights) delete tkbData.highlights[hlKey];
+
+    // Lưu và render lại
+    saveData();
+    
+    // Đồng bộ History
+    if (typeof tkbHistory !== 'undefined' && typeof currentWeek !== 'undefined') {
+         tkbHistory[currentWeek] = JSON.parse(JSON.stringify(tkbData));
+         localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
+    }
+
+    renderTKBTable(target);
+    $('tkbCellEditModal').style.display = 'none';
+    showToast("🗑️ Đã xóa tiết học.", "info");
 }
 // --- KẾT THÚC CẤU HÌNH ---
 // Khi tạo HTML trong vòng lặp:

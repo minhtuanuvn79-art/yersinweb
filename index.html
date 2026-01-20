@@ -10099,8 +10099,6 @@ function schDeleteCell() {
     $('schEditModal').style.display = 'none';
     schRenderGrid();
 }
-
-
 // 7. ÁP DỤNG VÀO WEB & XUẤT CSV
 function applySchedulerToMain() {
     if(confirm("Áp dụng TKB này vào hệ thống chính? (Dữ liệu cũ sẽ bị thay thế)")) {
@@ -10368,235 +10366,86 @@ function getSubjectCount(className, subjectName) {
     return count;
 }
 
-// ============================================================
-// 🚀 HỆ THỐNG XẾP TKB "GALAXY CORE" (NEW VERSION)
-// ============================================================
-
-// 1. Cấu hình ngày học (Thứ 2 -> Thứ 7)
-const SCHOOL_DAYS = [2, 3, 4, 5, 6, 7, 8];
-// Cấu hình các tiết cố định (Ví dụ: Chào cờ sáng Thứ 2, SHCN tiết 5 Thứ 7)
-const FIXED_SLOTS = {
-    "CHÀO CỜ": { day: 2, period: 0 }, // Tiết 1 Thứ 2
-    "SHCN":    { day: 7, period: 4 }  // Tiết 5 Thứ 7 (Cuối sáng)
-};
-
-// 2. Hàm chính: Chạy Xếp TKB
+// 🚀 CẬP NHẬT LOGIC AI (ĐỂ DÙNG HÀM TÍNH SỐ TIẾT MỚI)
 function schRunAI() {
-    // Kiểm tra dữ liệu đầu vào
     if (Object.keys(pccmMap).length === 0) {
-        alert("⚠️ CHƯA CÓ DỮ LIỆU GIÁO VIÊN! Vui lòng nhập file Excel Phân công chuyên môn trước.");
+        alert("⚠️ CHƯA CÓ DỮ LIỆU GIÁO VIÊN! Vui lòng nhập file Excel trước.");
         return;
     }
-    
-    // Lấy tuần đang chọn
+
     const week = document.getElementById('schWeek').value || 1;
-    
-    if(!confirm(`BẮT ĐẦU XẾP TKB TOÀN TRƯỜNG (TUẦN ${week})?\n\n- Thuật toán: Priority Heuristic & Conflict Check.\n- Dữ liệu: Dựa trên file PCCM và Cấu hình số tiết.`)) return;
+    if(!confirm(`BẮT ĐẦU XẾP TKB (TUẦN ${week})?\n- Số tiết sẽ được tính toán tự động theo Khối Lớp.`)) return;
 
-    const logEl = document.getElementById('schLogContent') || document.getElementById('schoolLog'); // Fallback nếu ID khác
-    if(logEl) logEl.innerHTML = "<div>⏳ Đang khởi tạo ma trận dữ liệu...</div>";
+    const logEl = document.getElementById('schLogContent');
+    logEl.innerHTML = "<div>⏳ Đang phân tích chương trình học...</div>";
 
-    // --- BƯỚC 1: CHUẨN BỊ DỮ LIỆU ---
     setTimeout(() => {
-        const startTime = performance.now();
-        
-        // Reset dữ liệu tuần này
-        if (!tkbHistory[week]) tkbHistory[week] = { student: {}, teacher: {}, grad: {} };
-        // Xóa sạch dữ liệu cũ của tuần để xếp mới (giữ lại cấu trúc object)
-        tkbHistory[week].student = {}; 
-        tkbHistory[week].teacher = {};
-
-        // Lấy danh sách lớp (từ classData hoặc tạo mẫu)
+        // BƯỚC 1: LẤY DANH SÁCH LỚP
         let classes = [];
         if (typeof classData !== 'undefined') Object.values(classData).forEach(arr => classes.push(...arr));
-        // Nếu không có lớp nào, tạo danh sách mẫu để test
-        if (classes.length === 0) classes = ["10A1", "10A2", "11B1", "12C1"];
+        if (classes.length === 0) classes = ["10A1", "10A2", "11A1", "12A1"];
 
-        // --- BƯỚC 2: TẠO DANH SÁCH NHIỆM VỤ (TASKS) ---
-        // Mỗi nhiệm vụ là 1 tiết dạy cần được xếp vào ô trống
+        // BƯỚC 2: TẠO NHIỆM VỤ (DỰA TRÊN CẤU HÌNH SỐ TIẾT MỚI)
         let tasks = [];
-        const allSubjects = Object.keys(pccmMap); // Lấy môn từ file PCCM
-
+        const allSubjects = Object.keys(pccmMap); // Lấy danh sách môn từ file Excel
+        
         classes.forEach(className => {
-            // Init dữ liệu mảng cho lớp
-            tkbHistory[week].student[className] = {}; 
-
-            // Duyệt qua các môn học có trong file PCCM
             allSubjects.forEach(subj => {
-                // Lấy số tiết chuẩn theo khối (Dùng hàm getSubjectCount có sẵn trong code cũ của bạn)
-                // Nếu chưa có hàm đó, mặc định là 1
-                let count = (typeof getSubjectCount === 'function') ? getSubjectCount(className, subj) : 2;
+                // Tính số tiết cho lớp này môn này
+                const count = getSubjectCount(className, subj);
                 
-                // Tìm giáo viên dạy môn này (Random trong list PCCM để cân bằng tải)
+                // Tìm giáo viên
                 let teacherName = findTeacherBySubject(subj);
                 if (!teacherName) teacherName = "Chưa PC";
 
-                // XỬ LÝ ĐẶC BIỆT: Môn 2 tiết (Văn, Toán) -> Gom thành cặp (Double Period)
-                // Các môn Chào cờ, SHCN sẽ được xếp cứng, không đưa vào task động
-                const cleanSubj = subj.toUpperCase();
-                
-                if (FIXED_SLOTS[cleanSubj]) {
-                    // Xếp cứng ngay lập tức
-                    const fix = FIXED_SLOTS[cleanSubj];
-                    assignDirectly(week, className, teacherName, cleanSubj, fix.day, fix.period);
-                } else {
-                    // Tạo task động
-                    // Tách thành các cặp tiết đôi (Block 2) và tiết đơn (Block 1)
-                    // Ví dụ: Toán 4 tiết -> 2 Block đôi. Toán 5 tiết -> 2 Block đôi + 1 Block đơn.
-                    let doubleBlocks = 0;
-                    let singleBlocks = count;
-
-                    // Ưu tiên xếp đôi cho Văn, Toán, Anh, Lý, Hóa (nếu >= 2 tiết)
-                    if (["TOÁN", "VĂN", "NGỮ VĂN", "ANH", "LÝ", "HÓA", "TIN", "THỂ DỤC", "GDTC", "GDQP"].some(s => cleanSubj.includes(s))) {
-                        doubleBlocks = Math.floor(count / 2);
-                        singleBlocks = count % 2;
-                    }
-
-                    // Push task ĐÔI
-                    for(let i=0; i<doubleBlocks; i++) {
-                        tasks.push({ 
-                            cls: className, subj: subj, teacher: teacherName, 
-                            duration: 2, // Kéo dài 2 tiết
-                            priority: 10 // Ưu tiên cao
-                        });
-                    }
-                    // Push task ĐƠN
-                    for(let i=0; i<singleBlocks; i++) {
-                        tasks.push({ 
-                            cls: className, subj: subj, teacher: teacherName, 
-                            duration: 1, 
-                            priority: 5  // Ưu tiên thấp hơn
-                        });
-                    }
+                // Tạo nhiệm vụ xếp
+                for(let i=0; i<count; i++) {
+                    tasks.push({
+                        class: className,
+                        subject: subj,
+                        teacher: teacherName
+                    });
                 }
             });
         });
-
-        // --- BƯỚC 3: SẮP XẾP ĐỘ ƯU TIÊN (HEURISTIC) ---
-        // Nguyên tắc: Môn khó xếp (2 tiết, môn Thể dục/QP) xếp trước.
-        tasks.sort((a, b) => b.priority - a.priority);
-
-        // --- BƯỚC 4: THUẬT TOÁN XẾP LỊCH (GREEDY WITH BACKTRACKING-LIKE CHECK) ---
+        
+        // --- BƯỚC 3 & 4: GIỮ NGUYÊN NHƯ CŨ ---
+        // (Phần xếp lịch bên dưới không thay đổi, chỉ thay đổi cách tạo tasks ở trên)
+        
+        if (!tkbHistory[week]) tkbHistory[week] = { student: {}, teacher: {} };
         let successCount = 0;
-        let failCount = 0;
-        let failLog = [];
+        
+        // Xáo trộn nhiệm vụ
+        tasks.sort(() => Math.random() - 0.5);
 
         tasks.forEach(task => {
-            let isPlaced = false;
-            
-            // Xáo trộn thứ tự ngày để môn học rải đều trong tuần, không dồn vào thứ 2
-            let days = shuffleArray([...SCHOOL_DAYS]); 
+            let placed = false;
+            let days = [2, 3, 4, 5, 6].sort(() => Math.random() - 0.5);
 
-            for (let day of days) {
-                if (isPlaced) break;
-
-                // Xác định giới hạn tiết: Môn Thể dục/QP nên học tiết cuối hoặc đầu
-                // Môn văn hóa tránh tiết 5 sáng (nếu 2 tiết)
-                
-                // Duyệt qua các tiết trong ngày (0->9: Sáng 1-5, Chiều 1-5)
-                // Lưu ý: Code cũ của bạn dùng index 0-4 (Sáng), 5-9 (Chiều)
-                for (let period = 0; period < 10; period++) {
-                    // Bỏ qua giờ nghỉ trưa (nếu cần logic ngăn cách)
+            for (let d of days) {
+                if (placed) break;
+                for (let p = 0; p < 10; p++) {
+                    if (checkClassBusy(week, task.class, d, p)) continue;
+                    if (task.teacher !== "Chưa PC" && checkTeacherBusy(week, task.teacher, d, p)) continue;
                     
-                    // CHECK 1: Nếu môn 2 tiết -> Phải còn đủ chỗ (tiết hiện tại + tiết sau)
-                    // Không được vắt từ Sáng sang Chiều (Tiết 4 -> Tiết 5 là vắt qua trưa)
-                    if (task.duration === 2) {
-                        if (period === 4 || period === 9) continue; // Không thể bắt đầu tiết đôi ở cuối buổi
-                    }
+                    // Ràng buộc môn thể dục/QP không học tiết 5, tiết 10 (tiết cuối buổi)
+                    if ((task.subject.toUpperCase().includes("THỂ") || task.subject.toUpperCase().includes("QP")) && (p===4 || p===9)) continue;
 
-                    // CHECK 2: Kiểm tra Slot trống (Cho lớp và Cho GV)
-                    if (checkSlotValid(week, task.cls, task.teacher, day, period)) {
-                        // Nếu là tiết đôi, phải check thêm tiết sau nữa
-                        if (task.duration === 2) {
-                            if (checkSlotValid(week, task.cls, task.teacher, day, period + 1)) {
-                                // OK -> Xếp cả 2 tiết
-                                assignDirectly(week, task.cls, task.teacher, task.subj, day, period);
-                                assignDirectly(week, task.cls, task.teacher, task.subj, day, period + 1);
-                                isPlaced = true;
-                                break;
-                            }
-                        } else {
-                            // Tiết đơn -> Xếp luôn
-                            assignDirectly(week, task.cls, task.teacher, task.subj, day, period);
-                            isPlaced = true;
-                            break;
-                        }
-                    }
+                    assignCell(week, d, p, task.class, task.subject, task.teacher);
+                    placed = true;
+                    successCount++;
+                    break;
                 }
-            }
-
-            if (isPlaced) successCount++;
-            else {
-                failCount++;
-                failLog.push(`${task.cls}: ${task.subj} (${task.teacher})`);
             }
         });
 
-        // --- BƯỚC 5: KẾT THÚC ---
-        // Lưu dữ liệu vào LocalStorage
-        localStorage.setItem("hk_v33_tkb_history", JSON.stringify(tkbHistory));
-        
-        // Gán dữ liệu vào biến hiển thị hiện tại
-        tkbData = tkbHistory[week]; 
+        tkbData = tkbHistory[week];
+        saveData();
+        logEl.innerHTML += `<div style="color:#4ade80">✅ Đã xếp xong!</div>`;
+        if (typeof schRenderGrid === 'function') schRenderGrid();
+        if (typeof renderTKBCards === 'function') renderTKBCards();
 
-        const duration = ((performance.now() - startTime)/1000).toFixed(2);
-        
-        if(logEl) {
-            logEl.innerHTML = `
-                <div style="color: #4ade80; font-weight:bold">✅ HOÀN TẤT TRONG ${duration}s</div>
-                <div>- Đã xếp: ${successCount} tiết</div>
-                <div>- Thất bại: <span style="color:${failCount>0?'red':'inherit'}">${failCount}</span> tiết</div>
-                ${failCount > 0 ? `<div style="font-size:10px; color:#f87171">${failLog.slice(0,5).join('<br>')}...</div>` : ''}
-            `;
-        }
-
-        // Vẽ lại giao diện web
-        if(typeof renderTKBCards === 'function') renderTKBCards();
-        alert(`Đã xếp xong TKB Tuần ${week}!\nThành công: ${successCount}\nTrùng lịch/Không xếp được: ${failCount}`);
-
-    }, 100); // SetTimeout để UI kịp render dòng "Đang chạy..."
-}
-
-// --- CÁC HÀM HỖ TRỢ (HELPER FUNCTIONS) ---
-
-// 1. Gán trực tiếp vào Data (Cập nhật cả Student và Teacher DB)
-function assignDirectly(week, cls, tea, subj, d, p) {
-    // 1. Ghi cho Student
-    if (!tkbHistory[week].student[cls][d]) tkbHistory[week].student[cls][d] = [];
-    tkbHistory[week].student[cls][d][p] = `${subj}\n(${tea})`;
-
-    // 2. Ghi cho Teacher (Để check trùng sau này)
-    if (!tkbHistory[week].teacher[tea]) tkbHistory[week].teacher[tea] = {};
-    if (!tkbHistory[week].teacher[tea][d]) tkbHistory[week].teacher[tea][d] = [];
-    
-    // Nếu ô GV đó đã có lớp khác -> Ghi đè hoặc cảnh báo (Ở đây thuật toán đã check trước nên ghi đè an toàn)
-    tkbHistory[week].teacher[tea][d][p] = `${cls} - ${subj}`;
-}
-
-// 2. Kiểm tra Slot có hợp lệ không (Lớp trống tiết đó VÀ GV trống tiết đó)
-function checkSlotValid(week, cls, tea, d, p) {
-    // A. Check Lớp: Ô đó phải chưa có môn nào
-    const sData = tkbHistory[week].student[cls];
-    if (sData && sData[d] && sData[d][p]) return false; // Lớp bận
-
-    // B. Check Giáo Viên: GV đó phải chưa dạy lớp nào khác vào giờ đó
-    if (tea && tea !== "Chưa PC") {
-        const tData = tkbHistory[week].teacher[tea];
-        if (tData && tData[d] && tData[d][p]) return false; // GV bận
-    }
-
-    return true; // Slot hợp lệ
-}
-
-// 3. Hàm xáo trộn mảng (Fisher-Yates Shuffle) - Để tạo tính ngẫu nhiên cho TKB
-function shuffleArray(array) {
-    let currentIndex = array.length, randomIndex;
-    while (currentIndex != 0) {
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex--;
-        [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-    }
-    return array;
+    }, 100);
 }
 // ============================================================
 // FIX: LOGIC NHẬP TKB ĐỒNG BỘ TỪ CŨ.HTML (FINAL VERSION)

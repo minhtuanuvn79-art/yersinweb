@@ -3295,6 +3295,20 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
         height: 100px !important;
     }
 }
+/* Style cho ô được Highlight (Quan trọng) */
+.cute-important {
+    background: linear-gradient(135deg, #fff9c4 0%, #fff176 100%) !important; /* Nền vàng sáng */
+    border: 2px solid #ff1744 !important; /* Viền đỏ */
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6) !important; /* Phát sáng vàng */
+    transform: scale(1.05); /* Phóng to nhẹ */
+    z-index: 10;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+/* Đổi màu chữ bên trong ô quan trọng */
+.cute-important .cute-subj { color: #d50000 !important; font-weight: 900 !important; }
+.cute-important .cute-teach { color: #b71c1c !important; font-weight: bold !important; }
 </style>
 </head>
 
@@ -3469,10 +3483,16 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
       <div id="tkbListView" class="grid-container" style="margin-top: 20px;"></div>
       
       <div id="tkbDetailView" style="display: none; animation: zoomIn 0.3s;">
-          <button class="btn" onclick="backToTKBList()" style="margin-bottom: 15px; border: 1px dashed rgba(255,255,255,0.3)">⬅️ Quay lại danh sách</button>
-          <button class="btn" style="background:rgba(255,255,255,0.1); border-color:white; float: right;" onclick="captureTKB()">📸 Chụp Ảnh TKB</button>
-          <div id="tkbContent" class="tkb-container"></div>
-      </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <button class="btn" onclick="backToTKBList()" style="border: 1px dashed rgba(255,255,255,0.3)">⬅️ Quay lại</button>
+        
+        <div style="display:flex; gap:10px">
+            <button class="btn red" onclick="clearCurrentWeekSchedule()">🗑️ Xóa Tuần Này</button>
+            <button class="btn" style="background:rgba(255,255,255,0.1); border-color:white;" onclick="captureTKB()">📸 Chụp Ảnh</button>
+        </div>
+    </div>
+    <div id="tkbContent" class="tkb-container"></div>
+</div>
   </div>
   <div id="stats" class="page-view">
     <div class="stats-container" id="statsContainer"></div>
@@ -5417,9 +5437,15 @@ function renderTKBTable(target) {
                 }
 
                 // --- Thay thế sự kiện click để mở Modal Sửa ---
-                html += `<td onclick="openEditTkbCell('${target}', ${d}, ${i})" class="${hlClass}" style="cursor:pointer;" title="Bấm để Sửa/Xóa">
-                <div class="cute-cell">${formatCellDisplay(val)}</div>
-                </td>`;
+                // --- SỬA ĐỔI: Thêm sự kiện ondblclick ---
+            html += `<td 
+            onclick="handleTKBCellClick('${target}', ${d}, ${i}')" 
+            ondblclick="handleCellDoubleClick(this, '${target}', ${d}, ${i})" 
+            class="${hlClass}" 
+            style="cursor:pointer;" 
+            title="Click: Sửa/Xóa | Đúp chuột: Tô màu">
+            <div class="cute-cell">${formatCellDisplay(val)}</div>
+         </td>`;
             }
             html += `</tr>`;
         }
@@ -11398,6 +11424,88 @@ function deleteTkbCellData() {
     renderTKBTable(target);
     $('tkbCellEditModal').style.display = 'none';
     showToast("🗑️ Đã xóa tiết học.", "info");
+}
+// ============================================================
+// 🗑️ TÍNH NĂNG: XÓA TKB NGUYÊN 1 TUẦN (CHO ĐỐI TƯỢNG ĐANG XEM)
+// ============================================================
+
+function clearCurrentWeekSchedule() {
+    // 1. Kiểm tra an toàn
+    if (!currentTkbTarget) return; // Chưa chọn lớp nào
+    
+    // 2. Xác định tên đối tượng đang xem (Lớp 10A1 hay Giáo viên A...)
+    let targetName = currentTkbTarget;
+    let viewName = "";
+    
+    if (tkbViewMode === 'teacher') viewName = "Giáo viên " + targetName;
+    else if (tkbViewMode === 'student') viewName = "Lớp " + targetName;
+    else viewName = "Phòng " + targetName;
+
+    // 3. Hỏi xác nhận (Vì xóa là mất hết!)
+    if (!confirm(`⚠️ CẢNH BÁO QUAN TRỌNG!\n\nBạn có chắc muốn XÓA SẠCH thời khóa biểu TUẦN ${currentWeek} của ${viewName} không?\n\nHành động này không thể hoàn tác!`)) {
+        return;
+    }
+
+    // 4. Thực hiện xóa dữ liệu
+    // tkbData là biến trỏ đến tuần hiện tại, ta xóa key tương ứng
+    if (tkbData[tkbViewMode] && tkbData[tkbViewMode][targetName]) {
+        
+        // Xóa dữ liệu tiết học
+        delete tkbData[tkbViewMode][targetName];
+
+        // Xóa luôn các ô tô màu (highlight) của lớp này trong tuần này
+        if (tkbData.highlights) {
+            Object.keys(tkbData.highlights).forEach(key => {
+                // Key format: teacher_TênGV_Thứ_Tiết
+                if (key.startsWith(`${tkbViewMode}_${targetName}_`)) {
+                    delete tkbData.highlights[key];
+                }
+            });
+        }
+
+        // 5. Lưu lại
+        saveData(); // Hàm lưu chung (đã bao gồm lưu History)
+        
+        // 6. Vẽ lại bảng (Lúc này bảng sẽ trắng trơn)
+        renderTKBTable(targetName);
+        
+        showToast(`Đã xóa sạch TKB tuần này của ${targetName}!`, "success");
+    } else {
+        showToast("Thời khóa biểu tuần này đang trống!", "info");
+    }
+}
+// ============================================================
+// 🖱️ TÍNH NĂNG: DOUBLE CLICK ĐỂ HIGHLIGHT (TÔ MÀU)
+// ============================================================
+
+function handleCellDoubleClick(element, target, day, period) {
+    // 1. Tạo Key duy nhất để lưu trạng thái highlight
+    // Key gồm: Chế độ xem (GV/Lớp) + Tên + Thứ + Tiết
+    const key = `${tkbViewMode}_${target}_${day}_${period}`;
+
+    // 2. Kiểm tra khởi tạo dữ liệu
+    if (!tkbData.highlights) tkbData.highlights = {};
+
+    // 3. Logic Bật/Tắt
+    if (tkbData.highlights[key]) {
+        // Nếu đang bật -> Tắt đi
+        delete tkbData.highlights[key];
+        element.classList.remove('cute-important'); // Xóa class CSS ngay lập tức
+        showToast("Đã bỏ đánh dấu.", "info");
+    } else {
+        // Nếu đang tắt -> Bật lên
+        tkbData.highlights[key] = true;
+        element.classList.add('cute-important'); // Thêm class CSS ngay lập tức
+        showToast("⭐ Đã đánh dấu quan trọng!", "success");
+    }
+
+    // 4. Lưu lại dữ liệu
+    saveData();
+    
+    // (Tùy chọn) Đồng bộ lịch sử nếu cần
+    if (typeof tkbHistory !== 'undefined' && typeof currentWeek !== 'undefined') {
+         tkbHistory[currentWeek] = JSON.parse(JSON.stringify(tkbData));
+    }
 }
 // --- KẾT THÚC CẤU HÌNH ---
 // Khi tạo HTML trong vòng lặp:

@@ -28,7 +28,6 @@
     --neon-red: #f43f5e;
     --text: #e2e8f0; 
 }
-
 body { 
     margin: 0; 
     font-family: 'Quicksand', sans-serif; 
@@ -38,47 +37,36 @@ body {
     background-attachment: fixed; 
     color: var(--text); 
     height: 100vh; 
-    /* --- SỬA ĐỔI QUAN TRỌNG 1: Bỏ flex, dùng block --- */
     display: block; 
     overflow-x: hidden; /* Chặn thanh cuộn ngang */
     transition: background 0.5s ease, color 0.5s ease; 
 }
-
-/* Scrollbar đẹp */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, var(--neon-purple), var(--neon-blue)); border-radius: 10px; box-shadow: 0 0 10px var(--neon-purple); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
-
-/* --- SIDEBAR MỚI (TRƯỢT) --- */
 .sidebar { 
     width: 260px; 
     height: 100%; 
     background: var(--sidebar-bg); 
     border-right: 1px solid var(--neon-blue); 
-    /* Cấu hình vị trí cố định để ẩn */
     position: fixed;
     top: 0;
     left: -280px; /* Ẩn hẳn sang trái */
     z-index: 9999; /* Luôn nằm trên cùng */
     transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
     box-shadow: 5px 0 30px rgba(0, 0, 0, 0.8);
-    
     display: flex; 
     flex-direction: column; 
     padding: 20px; 
     box-sizing: border-box; 
     backdrop-filter: blur(15px);
-
-    /* --- CẬP NHẬT: THÊM 2 DÒNG NÀY ĐỂ KÍCH HOẠT THANH CUỘN --- */
     overflow-y: auto;   /* Cho phép cuộn dọc */
     overflow-x: hidden; /* Ẩn cuộn ngang */
 }
 .sidebar::-webkit-scrollbar { width: 4px; }
 .sidebar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
 .sidebar::-webkit-scrollbar-thumb { background: linear-gradient(to bottom, var(--neon-blue), var(--neon-purple)); border-radius: 10px; }
-
-/* VÙNG CẢM ỨNG (TRIGGER ZONE) */
 .sidebar-trigger {
     position: fixed;
     top: 0;
@@ -88,24 +76,17 @@ body {
     z-index: 10000; /* Cao hơn cả sidebar */
     background: transparent;
 }
-
-/* LOGIC HIỆN MENU: Khi hover vào trigger HOẶC sidebar */
 .sidebar-trigger:hover ~ .sidebar,
 .sidebar:hover {
     left: 0; /* Trượt ra */
 }
-
-/* Sidebar Brand */
 .brand { font-size: 20px; font-weight: 700; color: var(--text); text-transform: uppercase; margin-bottom: 30px; text-shadow: 0 0 15px var(--neon-blue); letter-spacing: 2px; display: flex; justify-content: space-between; align-items: center; }
-
-/* Nav Items */
 .nav-item { padding: 12px 15px; margin-bottom: 8px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text); opacity: 0.7; font-weight: 600; transition: all 0.2s; border: 1px solid transparent; }
 .nav-item:hover { background: var(--glass-bg); opacity: 1; transform: translateX(5px); box-shadow: 0 0 15px rgba(255, 255, 255, 0.1); }
 .nav-item.active.hk-mode { background: linear-gradient(90deg, rgba(255,255,255, 0.1), transparent); border-left: 3px solid var(--neon-purple); color: var(--neon-purple); text-shadow: 0 0 10px var(--neon-purple); opacity: 1; }
 .nav-item.active.acad-mode { background: linear-gradient(90deg, rgba(251, 191, 36, 0.2), transparent); border-left: 3px solid var(--neon-gold); color: var(--neon-gold); text-shadow: 0 0 10px var(--neon-gold); opacity: 1; }
 .nav-item.active.tkb-mode { background: linear-gradient(90deg, rgba(0, 255, 204, 0.2), transparent); border-left: 3px solid var(--neon-cyan); color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); opacity: 1; }
 .nav-icon { width: 24px; text-align: center; font-size: 18px; }
-
 /* --- SIDEBAR FOOTER (DỒN CẤU HÌNH) --- */
 .sidebar-footer {
     margin-top: auto;
@@ -141,7 +122,6 @@ body {
     background: var(--neon-red) !important;
     color: white !important;
 }
-
 /* MAIN CONTENT */
 .main-content { 
     /* --- SỬA ĐỔI QUAN TRỌNG 2: Full màn hình --- */
@@ -155,14 +135,12 @@ body {
     position: relative; 
     transition: 0.3s;
 }
-
 /* Hiệu ứng làm mờ nội dung khi mở menu */
 .sidebar-trigger:hover ~ .main-content,
 .sidebar:hover ~ .main-content {
     filter: blur(3px) brightness(0.7);
     pointer-events: none; /* Không cho click lung tung */
 }
-
 /* HEADER */
 .header { padding: 15px 25px; border-bottom: 1px solid var(--neon-blue); box-shadow: 0 4px 15px rgba(0, 234, 255, 0.1); background: rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; backdrop-filter: blur(10px); position: relative; z-index: 500; overflow: visible !important; }
 .search-box { padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: var(--glass-bg); color: var(--text); min-width: 150px; font-weight: 600; transition: 0.3s;}
@@ -177,12 +155,10 @@ body {
 .btn.red:hover { background: var(--neon-red); color: white; }
 .btn.purple { border-color: var(--neon-purple); color: var(--neon-purple); }
 .btn.purple:hover { background: var(--neon-purple); color: white; }
-
 /* PAGE VIEW */
 .page-view { display: none; padding: 25px; height: 100%; overflow-y: auto; box-sizing: border-box; padding-bottom: 100px; animation: slideUpFade 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) forwards; z-index: 1; position: relative; }
 .page-view.active { display: block; }
 @keyframes slideUpFade { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-
 /* GRID & CARDS */
 .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
 .student-card { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; text-align: center; cursor: pointer; transition: .3s; position: relative; backdrop-filter: blur(5px); overflow: hidden;}
@@ -190,7 +166,6 @@ body {
 .student-card.hk-theme:hover { border-color: var(--neon-purple); box-shadow: 0 0 25px var(--neon-purple); }
 .student-card.acad-theme:hover { border-color: var(--neon-gold); box-shadow: 0 0 25px rgba(251, 191, 36, 0.3); }
 .card-checkbox { position: absolute; top: 15px; left: 15px; z-index: 20; width: 20px; height: 20px; cursor: pointer; accent-color: var(--neon-purple); transform: scale(1.3); }
-
 /* AVATAR & GALAXY EFFECT */
 .avatar-container { width: 70px; height: 70px; margin: 0 auto 15px; border-radius: 50%; position: relative; z-index: 1; display: flex; justify-content: center; align-items: center; background: transparent !important; box-shadow: none !important; padding: 0; transform-style: preserve-3d; }
 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #0a0a2a; position: relative; z-index: 10; border: 2px solid rgba(255,255,255,0.6); box-shadow: 0 0 25px rgba(0, 234, 255, 0.5); }
@@ -200,11 +175,9 @@ body {
 .card-score-badge { padding: 6px 15px; border-radius: 20px; font-weight: 700; font-size: 14px; background: rgba(0,0,0,0.4); margin-top: 25px; display: inline-block; border: 1px solid rgba(255,255,255,0.1); position: relative; z-index: 10; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
 .acad-theme .card-score-badge { color: var(--neon-gold); border-color: var(--neon-gold); box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
 @keyframes galaxy-spin-slow { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
-
 /* BULK ACTION BAR */
 .bulk-action-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--sidebar-bg); border: 1px solid var(--neon-blue); padding: 15px 30px; border-radius: 50px; display: none; align-items: center; gap: 15px; box-shadow: 0 0 30px rgba(0, 234, 255, 0.3); z-index: 1000; animation: slideUp 0.3s; }
 @keyframes slideUp { from { transform: translate(-50%, 100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
-
 /* MODALS */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(15px); animation: fadeIn 0.3s; }
 .profile-window { background: var(--sidebar-bg); width: 1000px; max-width: 95vw; height: 85vh; border-radius: 24px; display: flex; flex-direction: column; border: 1px solid var(--neon-purple); box-shadow: 0 0 30px rgba(189, 0, 255, 0.3), inset 0 0 20px rgba(189, 0, 255, 0.05); overflow: hidden; position: relative; color: var(--text); }
@@ -223,27 +196,19 @@ body {
 .t-desc { font-weight: bold; font-size: 14px; }
 .t-val { font-size: 13px; font-weight: bold; margin: 2px 0; }
 .t-time { font-size: 11px; opacity: 0.5; }
-
 .holo-grid {
-    /* Cấu hình lưới (Giữ nguyên nút nhỏ 100px) */
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 10px;
-
-    /* --- QUAN TRỌNG: CẤU HÌNH THANH TRƯỢT --- */
     max-height: 300px;       /* Giới hạn chiều cao (khoảng 3 hàng nút) */
     overflow-y: auto;        /* Tự động hiện thanh trượt khi nút nhiều */
     overflow-x: hidden;      /* Ẩn thanh trượt ngang */
-    
-    /* Trang trí khung chứa */
     padding: 5px;            /* Đệm nhẹ để bóng đổ của nút không bị cắt */
     background: rgba(0, 0, 0, 0.15); /* Nền tối nhẹ để phân vùng */
     border-radius: 12px;     /* Bo góc khung */
     border: 1px solid rgba(255, 255, 255, 0.05);
     align-content: start;    /* Dồn các nút lên trên cùng */
 }
-
-/* --- TÙY CHỈNH THANH TRƯỢT (SCROLLBAR) SIÊU NHỎ --- */
 .holo-grid::-webkit-scrollbar {
     width: 4px; /* Thanh trượt mảnh dẻ */
 }
@@ -267,7 +232,6 @@ body {
 .hc-label small { display: block; font-size: 10px; opacity: 0.7; margin-top: 3px; }
 @keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(2deg); } 50% { transform: rotate(0deg); } 75% { transform: rotate(-2deg); } 100% { transform: rotate(0deg); } }
 .shake-anim { animation: shake 0.3s infinite; border: 1px dashed white !important; cursor: context-menu !important; opacity: 0.8; }
-
 .confirm-box { background:var(--sidebar-bg); border-radius:20px; width:400px; border:1px solid var(--neon-cyan); box-shadow:0 0 25px rgba(0, 255, 204, 0.3), inset 0 0 15px rgba(0, 255, 204, 0.05); overflow:hidden; animation: zoomIn 0.2s; }
 .confirm-header { padding:20px; text-align:center; background: rgba(255,255,255,0.05); font-weight:bold; letter-spacing:2px; font-size: 18px; text-shadow: 0 0 10px rgba(255,255,255,0.3);}
 .confirm-body { padding:30px; display:flex; flex-direction:column; gap:20px; }
@@ -275,7 +239,6 @@ body {
 .input-group label { display: block; font-size: 12px; color: var(--text); opacity:0.6; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;}
 .input-group input { width:100%; padding:12px; border-radius:10px; border:1px solid rgba(255, 255, 255, 0.2); background:rgba(0,0,0,0.1); color:var(--text); box-sizing:border-box; font-size: 16px; transition: 0.3s;}
 .input-group input:focus { border-color: var(--neon-gold) !important; outline: none; box-shadow: 0 0 15px rgba(251, 191, 36, 0.4) !important; }
-
 /* TKB & Others */
 .tkb-container { background: transparent; border-radius: 24px; padding: 0; overflow-x: auto; }
 .tkb-controls { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; align-items: center; background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(5px); }
@@ -294,7 +257,6 @@ body {
 .subj-math, .subj-lit, .subj-eng, .subj-sci, .subj-soc, .subj-pe { background: #ffffff !important; border: 1px solid #e0e0e0 !important; box-shadow: none !important; }
 .tkb-cell-edit:hover { background: #f5f5f5 !important; border-color: #999 !important; z-index: 5; }
 .tkb-cell-edit.now-active { border: 2px solid #f44336 !important; background: #fff !important; }
-
 /* Fireworks & Effects */
 .celebrate-box { background: radial-gradient(circle, #2d1b4e 0%, #000 100%); width: 600px; padding: 40px; border-radius: 30px; text-align: center; position: relative; border: 2px solid var(--neon-gold); box-shadow: 0 0 50px var(--neon-gold), 0 0 100px rgba(189, 0, 255, 0.5); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 2500; }
 @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -302,7 +264,6 @@ body {
 @keyframes pulseText { from { transform: scale(1); } to { transform: scale(1.1); } }
 .ripple { position: absolute; border-radius: 50%; transform: scale(0); animation: ripple-animation 0.6s linear; background: rgba(255, 255, 255, 0.3); pointer-events: none; z-index: 100; }
 @keyframes ripple-animation { to { transform: scale(4); opacity: 0; } }
-
 /* --- HỆ THỐNG THÔNG BÁO CHUYÊN NGHIỆP (PRO TOAST) --- */
 #toast-container {
     position: fixed;
@@ -314,7 +275,6 @@ body {
     gap: 15px;
     pointer-events: none; /* Cho phép click xuyên qua vùng trống */
 }
-
 .pro-toast {
     min-width: 300px;
     max-width: 350px;
@@ -335,27 +295,21 @@ body {
     cursor: pointer;
     transition: 0.3s;
 }
-
 /* Hiệu ứng khi di chuột vào: Dừng thanh thời gian, sáng lên */
 .pro-toast:hover {
     transform: translateX(-5px);
     background: rgba(16, 18, 27, 1);
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
 }
-
 /* Các loại thông báo */
 .pro-toast.success { border-left: 5px solid #00e676; }
 .pro-toast.success .pt-icon { color: #00e676; background: rgba(0, 230, 118, 0.15); }
-
 .pro-toast.error { border-left: 5px solid #ff1744; }
 .pro-toast.error .pt-icon { color: #ff1744; background: rgba(255, 23, 68, 0.15); }
-
 .pro-toast.info { border-left: 5px solid #00b0ff; }
 .pro-toast.info .pt-icon { color: #00b0ff; background: rgba(0, 176, 255, 0.15); }
-
 .pro-toast.warning { border-left: 5px solid #ffc400; }
 .pro-toast.warning .pt-icon { color: #ffc400; background: rgba(255, 196, 0, 0.15); }
-
 /* Icon bên trái */
 .pt-icon {
     width: 35px;
@@ -367,7 +321,6 @@ body {
     font-size: 18px;
     flex-shrink: 0;
 }
-
 /* Nội dung chữ */
 .pt-content {
     flex: 1;
@@ -375,7 +328,6 @@ body {
     flex-direction: column;
     justify-content: center;
 }
-
 .pt-title {
     font-weight: 800;
     font-size: 14px;
@@ -383,14 +335,12 @@ body {
     margin-bottom: 4px;
     letter-spacing: 0.5px;
 }
-
 .pt-msg {
     font-size: 13px;
     opacity: 0.8;
     line-height: 1.4;
     font-weight: 500;
 }
-
 /* Thanh thời gian chạy bên dưới */
 .pt-progress {
     position: absolute;
@@ -400,33 +350,27 @@ body {
     width: 100%;
     background: rgba(255, 255, 255, 0.2);
 }
-
 .pt-bar {
     height: 100%;
     width: 100%;
     background: currentColor; /* Lấy màu text của cha */
     animation: toastProgress 3s linear forwards;
 }
-
 .pro-toast:hover .pt-bar {
     animation-play-state: paused; /* Dừng chạy khi hover */
 }
-
 /* Animation */
 @keyframes toastSlideIn {
     from { transform: translateX(120%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
-
 @keyframes toastSlideOut {
     to { transform: translateX(120%); opacity: 0; }
 }
-
 @keyframes toastProgress {
     from { width: 100%; }
     to { width: 0%; }
 }
-
 /* Tương thích giao diện Sáng (Yersin Light) */
 body.theme-yersin-light .pro-toast {
     background: #ffffff;
@@ -471,8 +415,6 @@ body.theme-yersin-light .pro-toast {
 .opt-group-label { padding: 8px 15px; font-size: 11px; color: var(--neon-gold); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); font-weight: bold; letter-spacing: 1px; }
 .del-class-btn { opacity: 0; color: var(--neon-red); font-size: 14px; padding: 5px; transition: 0.2s; }
 .class-option:hover .del-class-btn { opacity: 1; }
-/* --- GIAO DIỆN CỬA SỔ THÊM LỚP (MỚI) --- */
-/* --- KHU VỰC NÚT THÊM LỚP (STICKY) --- */
 .add-class-area {
     position: sticky;
     bottom: 0;
@@ -484,7 +426,6 @@ body.theme-yersin-light .pro-toast {
     box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(10px);
 }
-
 /* Tùy chỉnh cho giao diện Sáng (Yersin Light) */
 body.theme-yersin-light .add-class-area {
     background: #f8fafc !important;
@@ -733,10 +674,6 @@ input:checked + .slider:before { transform: translateX(18px); }
 .ctx-item:hover { background: var(--neon-purple); color: white; }
 .ctx-icon { width: 20px; text-align: center; }
 
-/* 4. Khung quét chọn (Selection Box) */
-/* --- SỬA LỖI KHUNG QUÉT --- */
-
-/* --- CẤU HÌNH GIAO DIỆN XEM TRƯỚC (PREVIEW) - CÓ CUỘN --- */
 #printPreviewModal .confirm-box {
     width: 900px !important;
     max-width: 100vw;
@@ -818,9 +755,6 @@ input:checked + .slider:before { transform: translateX(18px); }
     user-select: none;         /* Chuẩn */
 }
 
-/* 2. Giao diện khung quét (Màu xanh neon dễ nhận biết) */
-
-/* 3. Hiệu ứng khi thẻ được chọn trúng */
 .student-card.selected-active {
     background: rgba(0, 234, 255, 0.15) !important;
     border-color: var(--neon-cyan) !important;
@@ -858,9 +792,6 @@ body.theme-yersin-light #pageTitle {
     text-shadow: none !important;
     font-weight: 800;
 }
-/* --- TÙY CHỈNH CHI TIẾT MÀU SẮC CHO GIAO DIỆN YERSIN (LIGHT) --- */
-
-/* 1. NÚT BẤM (BUTTONS) - Style Cam hiện đại */
 body.theme-yersin-light .btn {
     /* Màu nền: Gradient Cam Đậm sang Vàng Cam */
     background: linear-gradient(135deg, #fb8c00 0%, #e65100 100%) !important;
@@ -908,8 +839,6 @@ body.theme-yersin-light textarea:focus {
     outline: none !important;
 }
 
-/* 3. MÀU CHỮ & TIÊU ĐỀ */
-/* Màu chữ chung */
 body.theme-yersin-light {
     color: #2c3e50 !important; /* Màu xám xanh đậm (dễ đọc hơn đen tuyền) */
 }
@@ -1070,8 +999,6 @@ body.theme-yersin-light .student-card div {
 /* ====================================================== */
 /* GIAO DIỆN TKB MẪU CUTE (THEO ẢNH YÊU CẦU) */
 /* ====================================================== */
-
-/* 1. Bao ngoài: Nền xanh nhạt, bo góc */
 .cute-tkb-wrapper {
     background-color: #e0f7fa; /* Nền xanh pastel */
     border: 8px solid #b2ebf2; /* Viền xanh đậm hơn */
@@ -3176,11 +3103,7 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
     padding: 20px;
 }
 
-/* KHI MÀN HÌNH DỌC (PORTRAIT) TRÊN ĐIỆN THOẠI -> HIỆN CẢNH BÁO */
-@media only screen and (max-width: 900px) and (orientation: portrait) {
-    #rotate-warning { display: flex; }
-    .main-content, .sidebar, .sidebar-trigger { display: none !important; } /* Ẩn app đi */
-}
+
 
 /* 2. CẤU HÌNH GIAO DIỆN KHI Ở CHẾ ĐỘ NGANG (LANDSCAPE) */
 @media only screen and (max-width: 920px) and (orientation: landscape) {
@@ -4407,16 +4330,6 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
     </div>
 </div>
 
-<style>
-@keyframes rotatePhone {
-    0% { transform: rotate(0deg); }
-    25% { transform: rotate(90deg); }
-    50% { transform: rotate(90deg); }
-    75% { transform: rotate(0deg); }
-    100% { transform: rotate(0deg); }
-}
-
-</style>
 <div class="modal-overlay" id="tkbCellEditModal" style="z-index: 6000;">
     <div class="confirm-box" style="width: 400px; border-color: var(--neon-cyan);">
         <div class="confirm-header" style="color: var(--neon-cyan); display:flex; justify-content:space-between; align-items:center;">

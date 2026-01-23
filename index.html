@@ -3083,24 +3083,36 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
     height: 15px !important;
     font-size: 10px !important;
 }
-/* ============================================================== */
-/* 📱 MOBILE OPTIMIZATION (LANDSCAPE MODE ONLY) */
-/* ============================================================== */
+/* --- TỰ ĐỘNG XOAY NGANG GIAO DIỆN KHI CẦM DỌC --- */
+@media only screen and (max-width: 900px) and (orientation: portrait) {
+    body {
+        /* Xoay toàn bộ trang 90 độ */
+        transform: rotate(90deg);
+        transform-origin: bottom left;
+        
+        /* Điều chỉnh vị trí sau khi xoay */
+        position: absolute;
+        top: -100vw;
+        left: 0;
+        
+        /* Hoán đổi chiều rộng và chiều cao */
+        height: 100vw;
+        width: 100vh;
+        
+        /* Cấu hình thanh cuộn */
+        overflow-x: hidden;
+        overflow-y: auto;
+        
+        /* Ẩn thanh cuộn mặc định để đỡ vướng */
+        scrollbar-width: none; 
+    }
+    
+    body::-webkit-scrollbar { 
+        display: none; 
+    }
 
-/* 1. Màn hình cảnh báo: Yêu cầu xoay ngang */
-#rotate-warning {
-    display: none; /* Mặc định ẩn */
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: #050515;
-    z-index: 999999;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: var(--neon-cyan);
-    text-align: center;
-    padding: 20px;
+    /* Ẩn các thành phần gây lỗi giao diện khi xoay (nếu có) */
+    #rotate-warning { display: none !important; }
 }
 
 
@@ -3387,6 +3399,37 @@ body.theme-yersin-light.pinned-mode .sidebar-trigger::after {
 @keyframes flashGold {
     from { text-shadow: 0 0 10px #fff, 0 0 20px #ffeb3b; transform: scale(1); }
     to { text-shadow: 0 0 20px #fff, 0 0 40px #ff5722; transform: scale(1.1); }
+}
+/* --- TỰ ĐỘNG XOAY NGANG GIAO DIỆN KHI CẦM DỌC --- */
+@media only screen and (max-width: 900px) and (orientation: portrait) {
+    body {
+        /* Xoay toàn bộ trang 90 độ */
+        transform: rotate(90deg);
+        transform-origin: bottom left;
+        
+        /* Điều chỉnh vị trí sau khi xoay */
+        position: absolute;
+        top: -100vw;
+        left: 0;
+        
+        /* Hoán đổi chiều rộng và chiều cao */
+        height: 100vw;
+        width: 100vh;
+        
+        /* Cấu hình thanh cuộn */
+        overflow-x: hidden;
+        overflow-y: auto;
+        
+        /* Ẩn thanh cuộn mặc định để đỡ vướng */
+        scrollbar-width: none; 
+    }
+    
+    body::-webkit-scrollbar { 
+        display: none; 
+    }
+
+    /* Ẩn các thành phần gây lỗi giao diện khi xoay (nếu có) */
+    #rotate-warning { display: none !important; }
 }
 </style>
 </head>
